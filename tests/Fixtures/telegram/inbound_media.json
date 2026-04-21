@@ -1,0 +1,31 @@
+{
+  "update_id": 1002,
+  "message": {
+    "message_id": 12,
+    "date": 1713686401,
+    "chat": {
+      "id": "tg-chat-1",
+      "type": "private"
+    },
+    "from": {
+      "id": "tg-user-1",
+      "username": "alice",
+      "first_name": "Alice"
+    },
+    "caption": "Image payload",
+    "photo": [
+      {
+        "file_id": "small-photo",
+        "width": 90,
+        "height": 90,
+        "file_size": 512
+      },
+      {
+        "file_id": "large-photo",
+        "width": 640,
+        "height": 640,
+        "file_size": 4096
+      }
+    ]
+  }
+}

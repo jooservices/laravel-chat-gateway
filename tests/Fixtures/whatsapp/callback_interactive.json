@@ -1,0 +1,35 @@
+{
+  "entry": [
+    {
+      "id": "wa-channel-1",
+      "changes": [
+        {
+          "value": {
+            "metadata": {
+              "phone_number_id": "1234567890"
+            },
+            "contacts": [
+              {
+                "profile": {
+                  "name": "Carol"
+                },
+                "wa_id": "84909999999"
+              }
+            ],
+            "messages": [
+              {
+                "from": "84909999999",
+                "id": "wamid.button.1",
+                "timestamp": "1713686402",
+                "type": "button",
+                "button": {
+                  "text": "Approve"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

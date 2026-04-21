@@ -1,0 +1,15 @@
+{
+  "update_id": 1004,
+  "my_chat_member": {
+    "chat": {
+      "id": "tg-chat-1"
+    },
+    "from": {
+      "id": "tg-user-1",
+      "first_name": "Alice"
+    },
+    "new_chat_member": {
+      "status": "member"
+    }
+  }
+}

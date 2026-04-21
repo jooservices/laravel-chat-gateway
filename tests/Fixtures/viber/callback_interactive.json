@@ -1,0 +1,13 @@
+{
+  "event": "message",
+  "message_token": 2003,
+  "sender": {
+    "id": "vb-user-1",
+    "name": "Bob"
+  },
+  "message": {
+    "type": "text",
+    "text": "Approved",
+    "tracking_data": "BTN_APPROVE"
+  }
+}

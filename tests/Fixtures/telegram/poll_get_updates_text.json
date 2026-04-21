@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "result": [
+    {
+      "update_id": 1001,
+      "message": {
+        "message_id": 11,
+        "date": 1713200000,
+        "chat": {
+          "id": "tg-chat-1",
+          "type": "private"
+        },
+        "from": {
+          "id": "tg-user-1",
+          "first_name": "Viet",
+          "last_name": "Vu",
+          "username": "vietvu"
+        },
+        "text": "Hello telegram"
+      }
+    }
+  ]
+}

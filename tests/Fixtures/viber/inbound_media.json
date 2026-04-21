@@ -1,0 +1,14 @@
+{
+  "event": "message",
+  "message_token": 2002,
+  "sender": {
+    "id": "vb-user-1",
+    "name": "Bob"
+  },
+  "message": {
+    "type": "picture",
+    "media": "https://example.com/picture.jpg",
+    "text": "See image",
+    "size": 2048
+  }
+}

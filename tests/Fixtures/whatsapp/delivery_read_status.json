@@ -1,0 +1,42 @@
+{
+  "delivered": {
+    "entry": [
+      {
+        "id": "wa-channel-1",
+        "changes": [
+          {
+            "value": {
+              "statuses": [
+                {
+                  "id": "wamid.outbound.1",
+                  "recipient_id": "84909999999",
+                  "status": "delivered"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "read": {
+    "entry": [
+      {
+        "id": "wa-channel-1",
+        "changes": [
+          {
+            "value": {
+              "statuses": [
+                {
+                  "id": "wamid.outbound.1",
+                  "recipient_id": "84909999999",
+                  "status": "read"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

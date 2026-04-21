@@ -1,0 +1,20 @@
+{
+  "update_id": 1003,
+  "callback_query": {
+    "id": "cb-1",
+    "from": {
+      "id": "tg-user-1",
+      "username": "alice",
+      "first_name": "Alice"
+    },
+    "message": {
+      "message_id": 13,
+      "date": 1713686402,
+      "chat": {
+        "id": "tg-chat-1",
+        "type": "private"
+      }
+    },
+    "data": "BTN_APPROVE"
+  }
+}

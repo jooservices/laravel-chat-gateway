@@ -1,0 +1,18 @@
+{
+  "delivered": {
+    "event": "delivered",
+    "message_token": 2004,
+    "sender": {
+      "id": "vb-user-1",
+      "name": "Bob"
+    }
+  },
+  "seen": {
+    "event": "seen",
+    "message_token": 2005,
+    "sender": {
+      "id": "vb-user-1",
+      "name": "Bob"
+    }
+  }
+}

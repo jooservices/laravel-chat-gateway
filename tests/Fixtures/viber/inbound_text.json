@@ -1,0 +1,13 @@
+{
+  "event": "message",
+  "message_token": 2001,
+  "sender": {
+    "id": "vb-user-1",
+    "name": "Bob",
+    "avatar": "https://example.com/bob.png"
+  },
+  "message": {
+    "type": "text",
+    "text": "Hello viber"
+  }
+}
