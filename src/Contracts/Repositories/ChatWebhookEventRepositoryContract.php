@@ -15,7 +15,7 @@ interface ChatWebhookEventRepositoryContract
      */
     public function createReceived(?ChatChannel $channel, string $provider, string $transport, ?string $externalEventId, ?string $eventType, array $payload, ?array $headers, ?string $payloadHash): ChatWebhookEvent;
 
-    public function findDuplicate(string $provider, ?string $externalEventId, ?string $payloadHash): ?ChatWebhookEvent;
+    public function findDuplicate(string $provider, ?int $channelId, ?string $externalEventId, ?string $payloadHash): ?ChatWebhookEvent;
 
     public function markStatus(ChatWebhookEvent $event, string $status, ?string $reason = null): ChatWebhookEvent;
 

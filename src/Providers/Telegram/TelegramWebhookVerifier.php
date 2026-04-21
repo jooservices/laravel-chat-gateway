@@ -13,13 +13,22 @@ final class TelegramWebhookVerifier implements WebhookVerifierContract
 {
     public function verify(Request $request, ChatChannel $channel): VerificationResultDto
     {
+        $secret = (string) $channel->webhook_secret;
+
+        if ($secret === '') {
+            return new VerificationResultDto(
+                verified: false,
+                reason: 'Channel has no webhook secret configured.',
+            );
+        }
+
         $header = (string) $request->header('X-Telegram-Bot-Api-Secret-Token', '');
 
         if ($header === '') {
             $header = (string) $request->query('secret', '');
         }
 
-        $verified = hash_equals((string) $channel->webhook_secret, $header);
+        $verified = hash_equals($secret, $header);
 
         return new VerificationResultDto(
             verified: $verified,

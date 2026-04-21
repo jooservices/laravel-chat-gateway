@@ -15,5 +15,8 @@ final class ConversationContextDto extends Dto
         public readonly string $externalChatId,
         public readonly ?string $status = null,
         public readonly ?array $meta = null,
+        public readonly ?string $chatType = null,
+        public readonly ?string $chatTitle = null,
+        public readonly ?string $chatUsername = null,
     ) {}
 }

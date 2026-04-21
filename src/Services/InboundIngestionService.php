@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace JOOservices\LaravelChatGateway\Services;
 
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use JOOservices\LaravelChatGateway\Contracts\Repositories\ChatContactRepositoryContract;
 use JOOservices\LaravelChatGateway\Contracts\Repositories\ChatMessageRepositoryContract;
 use JOOservices\LaravelChatGateway\Contracts\Services\ConversationServiceContract;
@@ -24,22 +25,24 @@ final class InboundIngestionService implements InboundIngestionServiceContract
 
     public function ingest(string $provider, ChatChannel $channel, InboundWebhookDto $parsed, ?array $rawPayload = null): void
     {
-        $contact = $this->contactRepository->upsertFromDto($provider, $channel, $parsed->contact);
-        $conversation = $this->conversationService->resolve($channel, $contact, $parsed);
+        DB::connection($channel->getConnectionName())->transaction(function () use ($provider, $channel, $parsed, $rawPayload): void {
+            $contact = $this->contactRepository->upsertFromDto($provider, $channel, $parsed->contact);
+            $conversation = $this->conversationService->resolve($channel, $contact, $parsed);
 
-        $message = $this->messageService->createInbound($conversation, $parsed, $rawPayload);
+            $message = $this->messageService->createInbound($conversation, $parsed, $rawPayload);
 
-        if ($parsed->isStatusEvent && $parsed->externalMessageId !== null && $message === null) {
-            $storedMessage = $this->messageRepository->findByProviderMessageId($provider, $parsed->externalMessageId);
+            if ($parsed->isStatusEvent && $parsed->externalMessageId !== null && $message === null) {
+                $storedMessage = $this->messageRepository->findByProviderMessageId($provider, $parsed->externalMessageId);
 
-            if ($storedMessage !== null) {
-                $status = $parsed->eventType === 'read_status' ? 'read' : 'delivered';
-                $this->messageService->updateStatus($storedMessage, $status, $parsed->providerStatus, $parsed->normalizedPayload);
+                if ($storedMessage !== null) {
+                    $status = $parsed->eventType === 'read_status' ? 'read' : 'delivered';
+                    $this->messageService->updateStatus($storedMessage, $status, $parsed->providerStatus, $parsed->normalizedPayload);
+                }
             }
-        }
 
-        if ($parsed->eventType === 'system' && in_array(Arr::get($parsed->providerMetadata ?? [], 'conversation_status'), ['closed'], true)) {
-            $this->conversationService->close($conversation);
-        }
+            if ($parsed->eventType === 'system' && in_array(Arr::get($parsed->providerMetadata ?? [], 'conversation_status'), ['closed'], true)) {
+                $this->conversationService->close($conversation);
+            }
+        });
     }
 }

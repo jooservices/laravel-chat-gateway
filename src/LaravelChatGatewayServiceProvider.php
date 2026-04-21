@@ -24,6 +24,8 @@ use JOOservices\LaravelChatGateway\Contracts\Services\InboundIngestionServiceCon
 use JOOservices\LaravelChatGateway\Contracts\Services\InboundModeResolverContract;
 use JOOservices\LaravelChatGateway\Contracts\Services\MessageServiceContract;
 use JOOservices\LaravelChatGateway\Contracts\Services\PollingServiceContract;
+use JOOservices\LaravelChatGateway\Contracts\Services\ProviderChannelServiceContract;
+use JOOservices\LaravelChatGateway\Contracts\Services\ProviderRegistryServiceContract;
 use JOOservices\LaravelChatGateway\Contracts\Services\WebhookServiceContract;
 use JOOservices\LaravelChatGateway\Console\Commands\GatewayPollCommand;
 use JOOservices\LaravelChatGateway\Providers\Telegram\TelegramProvider;
@@ -46,6 +48,9 @@ use JOOservices\LaravelChatGateway\Services\InboundIngestionService;
 use JOOservices\LaravelChatGateway\Services\InboundModeResolver;
 use JOOservices\LaravelChatGateway\Services\MessageService;
 use JOOservices\LaravelChatGateway\Services\PollingService;
+use JOOservices\LaravelChatGateway\Services\DeduplicationService;
+use JOOservices\LaravelChatGateway\Services\ProviderChannelService;
+use JOOservices\LaravelChatGateway\Services\ProviderRegistryService;
 use JOOservices\LaravelChatGateway\Services\ProviderHttpClientFactory;
 use JOOservices\LaravelChatGateway\Services\WebhookService;
 use JOOservices\LaravelChatGateway\Subscribers\ConversationLifecycleSubscriber;
@@ -76,6 +81,10 @@ final class LaravelChatGatewayServiceProvider extends ServiceProvider
         $this->app->singleton(InboundModeResolverContract::class, InboundModeResolver::class);
         $this->app->singleton(PollingServiceContract::class, PollingService::class);
         $this->app->singleton(WebhookServiceContract::class, WebhookService::class);
+        $this->app->singleton(ProviderChannelServiceContract::class, ProviderChannelService::class);
+        $this->app->singleton(DeduplicationService::class, DeduplicationService::class);
+
+        $this->app->bind(ProviderRegistryServiceContract::class, ProviderRegistryService::class);
 
         $this->app->bind(TelegramUpdateFetcher::class, TelegramUpdateFetcher::class);
         $this->app->bind(TelegramProvider::class, TelegramProvider::class);
@@ -94,6 +103,23 @@ final class LaravelChatGatewayServiceProvider extends ServiceProvider
 
     public function boot(Dispatcher $events): void
     {
+        $this->app->resolving(ProviderRegistryServiceContract::class, function (ProviderRegistryServiceContract $registry): void {
+            if (! $registry->has('telegram')) {
+                $telegram = $this->app->make(TelegramProvider::class);
+                $registry->register($telegram->name(), $telegram);
+            }
+
+            if (! $registry->has('viber')) {
+                $viber = $this->app->make(ViberProvider::class);
+                $registry->register($viber->name(), $viber);
+            }
+
+            if (! $registry->has('whatsapp')) {
+                $whatsApp = $this->app->make(WhatsAppProvider::class);
+                $registry->register($whatsApp->name(), $whatsApp);
+            }
+        });
+
         $this->publishes([
             __DIR__.'/../config/chat-gateway.php' => config_path('chat-gateway.php'),
         ], 'chat-gateway-config');

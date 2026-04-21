@@ -19,6 +19,8 @@ Important groups:
 
 Runtime credentials belong primarily in `chat_channels.credentials` and `chat_channels.settings`, not only in config.
 
+Provider channel writes should validate provider-specific credentials and settings before persistence. The package now exposes a `ProviderChannelService` for register, update, activate, deactivate, and default-channel operations while keeping runtime credentials DB-backed in `chat_channels`.
+
 Inbound mode defaults:
 
 - `chat-gateway.inbound.default_mode = poll`
@@ -55,8 +57,8 @@ Cache key strategy:
 
 - `chat_gateway:channel:{provider}:{channel_key}`
 - `chat_gateway:conversation:{channel_id}:{external_chat_id}`
-- `chat_gateway:webhook_dedupe:{provider}:{external_event_id}`
-- `chat_gateway:poll_dedupe:{provider}:{external_event_id}`
+- `chat_gateway:webhook_dedupe:channel:{channel_id}:{provider}:{external_event_id}`
+- `chat_gateway:poll_dedupe:channel:{channel_id}:{provider}:{external_event_id}`
 
 Privacy defaults:
 

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace JOOservices\LaravelChatGateway\Services;
 
-use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Http\Request;
 use JOOservices\LaravelChatGateway\Contracts\Repositories\ChatWebhookEventRepositoryContract;
@@ -31,7 +30,7 @@ final class WebhookService implements WebhookServiceContract
         private readonly InboundModeResolverContract $inboundModeResolver,
         private readonly ChatGatewayManager $manager,
         private readonly Dispatcher $events,
-        private readonly CacheFactory $cacheFactory,
+        private readonly DeduplicationService $deduplicationService,
     ) {}
 
     public function process(Request $request, string $provider, ?string $channelKey = null): ChatWebhookEvent
@@ -69,8 +68,14 @@ final class WebhookService implements WebhookServiceContract
             throw new WebhookRejectedException($verification->reason ?? 'Webhook verification failed.');
         }
 
-        $duplicate = $this->webhookEventRepository->findDuplicate($provider, $parsed->externalEventId, $payloadHash);
-        $duplicateByCache = $this->dedupeKeyAlreadySeen($provider, $parsed->externalEventId, $payloadHash);
+        $duplicate = $this->webhookEventRepository->findDuplicate($provider, (int) $channel->getKey(), $parsed->externalEventId, $payloadHash);
+        $duplicateByCache = $this->deduplicationService->has(
+            'webhook_dedupe',
+            (int) $channel->getKey(),
+            $provider,
+            $parsed->externalEventId,
+            $payloadHash,
+        );
 
         if ($duplicate !== null || $duplicateByCache) {
             $existing = $duplicate;
@@ -94,7 +99,14 @@ final class WebhookService implements WebhookServiceContract
             return $existing;
         }
 
-        $this->storeDedupeKey($provider, $parsed->externalEventId, $payloadHash);
+        $this->deduplicationService->put(
+            'webhook_dedupe',
+            (int) $channel->getKey(),
+            $provider,
+            $parsed->externalEventId,
+            $payloadHash,
+            (int) config('chat-gateway.cache.webhook_dedupe_ttl_seconds', 300),
+        );
 
         $webhookEvent = $this->webhookEventRepository->createReceived(
             $channel,
@@ -135,23 +147,5 @@ final class WebhookService implements WebhookServiceContract
         }
 
         return $this->manager->providerForChannel($channel)->verify($request, $channel);
-    }
-
-    private function dedupeKeyAlreadySeen(string $provider, ?string $externalEventId, string $payloadHash): bool
-    {
-        $cacheStore = $this->cacheFactory->store((string) config('chat-gateway.cache.store', 'array'));
-        $identifier = $externalEventId !== null && $externalEventId !== '' ? $externalEventId : $payloadHash;
-        $cacheKey = sprintf('%s:webhook_dedupe:%s:%s', (string) config('chat-gateway.cache.prefix', 'chat_gateway'), $provider, $identifier);
-
-        return $cacheStore->has($cacheKey);
-    }
-
-    private function storeDedupeKey(string $provider, ?string $externalEventId, string $payloadHash): void
-    {
-        $cacheStore = $this->cacheFactory->store((string) config('chat-gateway.cache.store', 'array'));
-        $identifier = $externalEventId !== null && $externalEventId !== '' ? $externalEventId : $payloadHash;
-        $cacheKey = sprintf('%s:webhook_dedupe:%s:%s', (string) config('chat-gateway.cache.prefix', 'chat_gateway'), $provider, $identifier);
-
-        $cacheStore->put($cacheKey, true, (int) config('chat-gateway.cache.webhook_dedupe_ttl_seconds', 300));
     }
 }

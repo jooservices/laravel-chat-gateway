@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace JOOservices\LaravelChatGateway\Providers\Telegram;
 
+use InvalidArgumentException;
 use JOOservices\LaravelChatGateway\Contracts\Providers\OutboundMessageSenderContract;
 use JOOservices\LaravelChatGateway\Contracts\Providers\ProviderHttpClientFactoryContract;
 use JOOservices\LaravelChatGateway\DTOs\AttachmentDto;
@@ -23,7 +24,11 @@ final class TelegramMessageSender implements OutboundMessageSenderContract
         $token = (string) ($channel->credentials['bot_token'] ?? '');
         $chatId = $message->externalChatId ?? (string) ($message->meta['external_chat_id'] ?? '');
 
-        if ($token === '' || $chatId === '') {
+        if ($token === '') {
+            throw new InvalidArgumentException('Telegram bot_token credential is missing for channel ['.$channel->channel_key.'].');
+        }
+
+        if ($chatId === '') {
             return new OutboundMessageResultDto(false, 'failed', errorMessage: 'Telegram credentials or chat id missing.');
         }
 

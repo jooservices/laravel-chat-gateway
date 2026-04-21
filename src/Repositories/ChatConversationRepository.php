@@ -41,21 +41,53 @@ final class ChatConversationRepository extends EloquentRepository implements Cha
     public function createOrUpdate(ChatChannel $channel, ChatContact $contact, ConversationContextDto $conversation): ChatConversation
     {
         $now = CarbonImmutable::now();
+        $channelId = (int) $channel->getKey();
 
-        /** @var ChatConversation $record */
-        $record = $this->newQuery()->updateOrCreate(
-            [
-                'channel_id' => (int) $channel->getKey(),
-                'external_chat_id' => $conversation->externalChatId,
-            ],
-            [
+        /** @var ?ChatConversation $existing */
+        $existing = $this->newQuery()
+            ->where('channel_id', $channelId)
+            ->where('external_chat_id', $conversation->externalChatId)
+            ->first();
+
+        if ($existing !== null) {
+            $updates = [
                 'contact_id' => (int) $contact->getKey(),
-                'status' => $conversation->status ?? config('chat-gateway.conversations.default_status', 'open'),
-                'started_at' => $now,
+                'status' => $conversation->status ?? $existing->status,
                 'last_message_at' => $now,
                 'meta' => $conversation->meta,
-            ]
-        );
+            ];
+
+            if ($conversation->chatType !== null) {
+                $updates['chat_type'] = $conversation->chatType;
+            }
+
+            if ($conversation->chatTitle !== null) {
+                $updates['chat_title'] = $conversation->chatTitle;
+            }
+
+            if ($conversation->chatUsername !== null) {
+                $updates['chat_username'] = $conversation->chatUsername;
+            }
+
+            $existing->fill($updates);
+            $existing->save();
+
+            return $existing->refresh();
+        }
+
+        /** @var ChatConversation $record */
+        $record = $this->newQuery()->create([
+            'channel_id' => $channelId,
+            'external_chat_id' => $conversation->externalChatId,
+            'chat_type' => $conversation->chatType,
+            'chat_title' => $conversation->chatTitle,
+            'chat_username' => $conversation->chatUsername,
+            'contact_id' => (int) $contact->getKey(),
+            'status' => $conversation->status ?? config('chat-gateway.conversations.default_status', 'open'),
+            'started_at' => $now,
+            'last_message_at' => $now,
+            'meta' => $conversation->meta,
+        ]);
 
         return $record;
     }

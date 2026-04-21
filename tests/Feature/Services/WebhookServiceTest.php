@@ -61,14 +61,42 @@ final class WebhookServiceTest extends TestCase
         $this->assertSame('deduplicated', $event->status);
     }
 
-    private function makeTelegramChannel(): ChatChannel
+    public function test_it_uses_channel_aware_dedupe_for_webhooks(): void
+    {
+        $firstChannel = $this->makeTelegramChannel('telegram-one');
+        $secondChannel = $this->makeTelegramChannel('telegram-two', false);
+        $payloadOne = $this->loadJsonFixture('telegram/inbound_text.json');
+        $payloadTwo = $this->loadJsonFixture('telegram/inbound_text.json');
+        $payloadTwo['message']['message_id'] = 12;
+
+        $first = Request::create('/chat-gateway/webhooks/telegram/'.$firstChannel->channel_key, 'POST', [], [], [], [
+            'HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN' => 'telegram-secret',
+        ], json_encode($payloadOne, JSON_THROW_ON_ERROR));
+        $first->replace($payloadOne);
+
+        $second = Request::create('/chat-gateway/webhooks/telegram/'.$secondChannel->channel_key, 'POST', [], [], [], [
+            'HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN' => 'telegram-secret',
+        ], json_encode($payloadTwo, JSON_THROW_ON_ERROR));
+        $second->replace($payloadTwo);
+
+        $service = $this->app->make(WebhookServiceContract::class);
+        $firstEvent = $service->process($first, 'telegram', $firstChannel->channel_key);
+        $secondEvent = $service->process($second, 'telegram', $secondChannel->channel_key);
+
+        $this->assertSame('processed', $firstEvent->status);
+        $this->assertSame('processed', $secondEvent->status);
+        $this->assertDatabaseHas('chat_webhook_events', ['channel_id' => $firstChannel->id, 'external_event_id' => '1001', 'status' => 'processed']);
+        $this->assertDatabaseHas('chat_webhook_events', ['channel_id' => $secondChannel->id, 'external_event_id' => '1001', 'status' => 'processed']);
+    }
+
+    private function makeTelegramChannel(string $channelKey = 'telegram-default', bool $isDefault = true): ChatChannel
     {
         return ChatChannel::query()->create([
             'provider' => 'telegram',
-            'channel_key' => 'telegram-default',
+            'channel_key' => $channelKey,
             'name' => 'Telegram',
             'status' => 'active',
-            'is_default' => true,
+            'is_default' => $isDefault,
             'credentials' => ['bot_token' => 'bot-token'],
             'settings' => [
                 'inbound_mode' => 'callback',

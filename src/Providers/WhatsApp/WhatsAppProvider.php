@@ -6,8 +6,10 @@ namespace JOOservices\LaravelChatGateway\Providers\WhatsApp;
 
 use Illuminate\Http\Request;
 use JOOservices\LaravelChatGateway\Contracts\Providers\ChatProviderContract;
+use JOOservices\LaravelChatGateway\Contracts\Providers\CredentialSchemaContract;
 use JOOservices\LaravelChatGateway\Contracts\Providers\InboundWebhookParserContract;
 use JOOservices\LaravelChatGateway\Contracts\Providers\OutboundMessageSenderContract;
+use JOOservices\LaravelChatGateway\Contracts\Providers\SupportsCredentialSchemaContract;
 use JOOservices\LaravelChatGateway\Contracts\Providers\WebhookVerifierContract;
 use JOOservices\LaravelChatGateway\DTOs\OutboundMessageDto;
 use JOOservices\LaravelChatGateway\DTOs\OutboundMessageResultDto;
@@ -15,12 +17,13 @@ use JOOservices\LaravelChatGateway\DTOs\ProviderCapabilitiesDto;
 use JOOservices\LaravelChatGateway\DTOs\VerificationResultDto;
 use JOOservices\LaravelChatGateway\Models\ChatChannel;
 
-final class WhatsAppProvider implements ChatProviderContract
+final class WhatsAppProvider implements ChatProviderContract, SupportsCredentialSchemaContract
 {
     public function __construct(
         private readonly WhatsAppWebhookParser $parser,
         private readonly WhatsAppWebhookVerifier $verifier,
         private readonly WhatsAppMessageSender $sender,
+        private readonly WhatsAppCredentialSchema $credentialSchema,
     ) {}
 
     public function name(): string
@@ -46,6 +49,11 @@ final class WhatsAppProvider implements ChatProviderContract
     public function sender(): OutboundMessageSenderContract
     {
         return $this->sender;
+    }
+
+    public function credentialSchema(): CredentialSchemaContract
+    {
+        return $this->credentialSchema;
     }
 
     public function verify(Request $request, ChatChannel $channel): VerificationResultDto

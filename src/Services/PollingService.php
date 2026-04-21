@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace JOOservices\LaravelChatGateway\Services;
 
-use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use JOOservices\LaravelChatGateway\Contracts\Providers\PollingCapableProviderContract;
 use JOOservices\LaravelChatGateway\Contracts\Repositories\ChatPollingStateRepositoryContract;
 use JOOservices\LaravelChatGateway\Contracts\Repositories\ChatWebhookEventRepositoryContract;
@@ -27,7 +26,7 @@ final class PollingService implements PollingServiceContract
         private readonly InboundModeResolverContract $inboundModeResolver,
         private readonly InboundIngestionServiceContract $inboundIngestionService,
         private readonly ChatGatewayManager $manager,
-        private readonly CacheFactory $cacheFactory,
+        private readonly DeduplicationService $deduplicationService,
     ) {}
 
     public function poll(string $provider, PollingBatchOptionsDto $options): PollingRunResultDto
@@ -65,8 +64,14 @@ final class PollingService implements PollingServiceContract
         foreach ($result->updates as $update) {
             $parsed = $providerInstance->parser()->parse($update, [], $channel);
             $payloadHash = hash('sha256', json_encode($update, JSON_THROW_ON_ERROR));
-            $duplicate = $this->webhookEventRepository->findDuplicate($provider, $parsed->externalEventId, $payloadHash);
-            $duplicateByCache = $this->pollDedupeKeyAlreadySeen($provider, $parsed->externalEventId, $payloadHash);
+            $duplicate = $this->webhookEventRepository->findDuplicate($provider, (int) $channel->getKey(), $parsed->externalEventId, $payloadHash);
+            $duplicateByCache = $this->deduplicationService->has(
+                'poll_dedupe',
+                (int) $channel->getKey(),
+                $provider,
+                $parsed->externalEventId,
+                $payloadHash,
+            );
             $event = $duplicate;
 
             if ($event === null) {
@@ -94,7 +99,14 @@ final class PollingService implements PollingServiceContract
             }
 
             try {
-                $this->storePollDedupeKey($provider, $parsed->externalEventId, $payloadHash);
+                $this->deduplicationService->put(
+                    'poll_dedupe',
+                    (int) $channel->getKey(),
+                    $provider,
+                    $parsed->externalEventId,
+                    $payloadHash,
+                    (int) config('chat-gateway.cache.poll_dedupe_ttl_seconds', 300),
+                );
                 $this->webhookEventRepository->markStatus($event, WebhookEventStatus::Verified->value);
                 $this->inboundIngestionService->ingest($provider, $channel, $parsed, $update);
                 $this->webhookEventRepository->markProcessed($event);
@@ -130,23 +142,5 @@ final class PollingService implements PollingServiceContract
         $updateId = (int) ($update['update_id'] ?? 0);
 
         return $updateId > 0 ? max($currentOffset, $updateId + 1) : $currentOffset;
-    }
-
-    private function pollDedupeKeyAlreadySeen(string $provider, ?string $externalEventId, string $payloadHash): bool
-    {
-        $cacheStore = $this->cacheFactory->store((string) config('chat-gateway.cache.store', 'array'));
-        $identifier = $externalEventId !== null && $externalEventId !== '' ? $externalEventId : $payloadHash;
-        $cacheKey = sprintf('%s:poll_dedupe:%s:%s', (string) config('chat-gateway.cache.prefix', 'chat_gateway'), $provider, $identifier);
-
-        return $cacheStore->has($cacheKey);
-    }
-
-    private function storePollDedupeKey(string $provider, ?string $externalEventId, string $payloadHash): void
-    {
-        $cacheStore = $this->cacheFactory->store((string) config('chat-gateway.cache.store', 'array'));
-        $identifier = $externalEventId !== null && $externalEventId !== '' ? $externalEventId : $payloadHash;
-        $cacheKey = sprintf('%s:poll_dedupe:%s:%s', (string) config('chat-gateway.cache.prefix', 'chat_gateway'), $provider, $identifier);
-
-        $cacheStore->put($cacheKey, true, (int) config('chat-gateway.cache.poll_dedupe_ttl_seconds', 300));
     }
 }

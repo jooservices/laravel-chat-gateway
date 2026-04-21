@@ -36,9 +36,13 @@ final class ChatWebhookEventRepository extends EloquentRepository implements Cha
         return $event;
     }
 
-    public function findDuplicate(string $provider, ?string $externalEventId, ?string $payloadHash): ?ChatWebhookEvent
+    public function findDuplicate(string $provider, ?int $channelId, ?string $externalEventId, ?string $payloadHash): ?ChatWebhookEvent
     {
         $query = $this->newQuery()->where('provider', $provider);
+
+        if ($channelId !== null) {
+            $query->where('channel_id', $channelId);
+        }
 
         if ($externalEventId !== null && $externalEventId !== '') {
             /** @var ?ChatWebhookEvent $event */

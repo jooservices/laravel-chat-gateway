@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace JOOservices\LaravelChatGateway\Providers\Telegram;
 
+use InvalidArgumentException;
 use JOOservices\LaravelChatGateway\Contracts\Providers\PollingUpdateFetcherContract;
 use JOOservices\LaravelChatGateway\Contracts\Providers\ProviderHttpClientFactoryContract;
 use JOOservices\LaravelChatGateway\DTOs\PollingBatchOptionsDto;
@@ -22,7 +23,7 @@ final class TelegramUpdateFetcher implements PollingUpdateFetcherContract
         $token = (string) ($channel->credentials['bot_token'] ?? '');
 
         if ($token === '') {
-            return new PollingFetchResultDto([]);
+            throw new InvalidArgumentException('Telegram bot_token credential is missing for channel ['.$channel->channel_key.'].');
         }
 
         $pollTimeout = max(1, (int) ($options->timeout ?? config('chat-gateway.providers.telegram.polling.timeout', 30)));

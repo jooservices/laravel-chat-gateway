@@ -14,6 +14,19 @@ use JOOservices\LaravelChatGateway\DTOs\OutboundMessageResultDto;
 final class TelegramMapper
 {
     /**
+     * @param  array<string, mixed>  $chat
+     */
+    private function mapConversation(array $chat, string $fallbackChatId): ConversationContextDto
+    {
+        return new ConversationContextDto(
+            externalChatId: (string) Arr::get($chat, 'id', $fallbackChatId),
+            chatType: Arr::get($chat, 'type'),
+            chatTitle: Arr::get($chat, 'title'),
+            chatUsername: Arr::get($chat, 'username'),
+        );
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      */
     public function mapInbound(array $payload): InboundWebhookDto
@@ -35,7 +48,7 @@ final class TelegramMapper
                 isStatusEvent: false,
                 isInteractionEvent: true,
                 contact: $this->mapContact($from),
-                conversation: new ConversationContextDto((string) Arr::get($sourceMessage, 'chat.id', 'telegram-system')),
+                conversation: $this->mapConversation((array) Arr::get($sourceMessage, 'chat', []), 'telegram-system'),
                 externalMessageId: (string) Arr::get($sourceMessage, 'message_id'),
                 content: (string) Arr::get($callback, 'data', ''),
                 normalizedPayload: $callback,
@@ -81,7 +94,7 @@ final class TelegramMapper
                 isStatusEvent: false,
                 isInteractionEvent: false,
                 contact: $this->mapContact((array) Arr::get($message, 'from', [])),
-                conversation: new ConversationContextDto((string) Arr::get($message, 'chat.id', 'telegram-system')),
+                conversation: $this->mapConversation((array) Arr::get($message, 'chat', []), 'telegram-system'),
                 externalMessageId: (string) Arr::get($message, 'message_id'),
                 content: $content,
                 attachments: $attachments,
@@ -103,7 +116,7 @@ final class TelegramMapper
                 isStatusEvent: false,
                 isInteractionEvent: false,
                 contact: $this->mapContact($from),
-                conversation: new ConversationContextDto((string) Arr::get($membership, 'chat.id', 'telegram-system')),
+                conversation: $this->mapConversation((array) Arr::get($membership, 'chat', []), 'telegram-system'),
                 content: (string) Arr::get($membership, 'new_chat_member.status', 'membership_change'),
                 normalizedPayload: $membership,
                 providerMetadata: ['conversation_status' => Arr::get($membership, 'new_chat_member.status')],

@@ -10,6 +10,8 @@ Create a `chat_channels` record with:
 - `settings` JSON for provider-specific options
 - `webhook_secret`
 
+You can persist the row directly or through `ProviderChannelService`, which validates provider-specific credentials and settings before writing the channel record.
+
 Recommended `settings` examples:
 
 - poll default: `{ "inbound_mode": "poll", "polling": { "enabled": true } }`
@@ -18,8 +20,14 @@ Recommended `settings` examples:
 Example channel credential patterns:
 
 - Telegram: `bot_token`
-- Viber: `auth_token`
+- Viber: `auth_token` or `access_token`
 - WhatsApp: `access_token`, `phone_number_id`, optional `app_secret`
+
+Webhook secret rules:
+
+- Telegram callback verification requires a non-empty `webhook_secret`
+- Viber callback verification requires a non-empty `webhook_secret`
+- WhatsApp challenge or signature verification requires a non-empty channel secret source
 
 Register the webhook URL with the provider using:
 

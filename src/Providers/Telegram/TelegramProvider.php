@@ -9,6 +9,8 @@ use JOOservices\LaravelChatGateway\Contracts\Providers\InboundWebhookParserContr
 use JOOservices\LaravelChatGateway\Contracts\Providers\OutboundMessageSenderContract;
 use JOOservices\LaravelChatGateway\Contracts\Providers\PollingCapableProviderContract;
 use JOOservices\LaravelChatGateway\Contracts\Providers\PollingUpdateFetcherContract;
+use JOOservices\LaravelChatGateway\Contracts\Providers\CredentialSchemaContract;
+use JOOservices\LaravelChatGateway\Contracts\Providers\SupportsCredentialSchemaContract;
 use JOOservices\LaravelChatGateway\Contracts\Providers\WebhookVerifierContract;
 use JOOservices\LaravelChatGateway\DTOs\OutboundMessageDto;
 use JOOservices\LaravelChatGateway\DTOs\OutboundMessageResultDto;
@@ -16,13 +18,14 @@ use JOOservices\LaravelChatGateway\DTOs\ProviderCapabilitiesDto;
 use JOOservices\LaravelChatGateway\DTOs\VerificationResultDto;
 use JOOservices\LaravelChatGateway\Models\ChatChannel;
 
-final class TelegramProvider implements PollingCapableProviderContract
+final class TelegramProvider implements PollingCapableProviderContract, SupportsCredentialSchemaContract
 {
     public function __construct(
         private readonly TelegramWebhookParser $parser,
         private readonly TelegramWebhookVerifier $verifier,
         private readonly TelegramMessageSender $sender,
         private readonly TelegramUpdateFetcher $updateFetcher,
+        private readonly TelegramCredentialSchema $credentialSchema,
     ) {}
 
     public function name(): string
@@ -53,6 +56,11 @@ final class TelegramProvider implements PollingCapableProviderContract
     public function pollingFetcher(): PollingUpdateFetcherContract
     {
         return $this->updateFetcher;
+    }
+
+    public function credentialSchema(): CredentialSchemaContract
+    {
+        return $this->credentialSchema;
     }
 
     public function verify(Request $request, ChatChannel $channel): VerificationResultDto

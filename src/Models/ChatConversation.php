@@ -13,6 +13,9 @@ use Illuminate\Support\Carbon;
  * @property int $channel_id
  * @property int $contact_id
  * @property string $external_chat_id
+ * @property string|null $chat_type
+ * @property string|null $chat_title
+ * @property string|null $chat_username
  * @property string $status
  * @property Carbon|null $started_at
  * @property Carbon|null $closed_at
@@ -30,6 +33,9 @@ class ChatConversation extends ChatGatewayModel
         'channel_id',
         'contact_id',
         'external_chat_id',
+        'chat_type',
+        'chat_title',
+        'chat_username',
         'status',
         'started_at',
         'closed_at',

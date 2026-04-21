@@ -14,8 +14,17 @@ final class WhatsAppWebhookVerifier implements WebhookVerifierContract
     public function verify(Request $request, ChatChannel $channel): VerificationResultDto
     {
         if ($request->isMethod('get')) {
+            $secret = (string) $channel->webhook_secret;
+
+            if ($secret === '') {
+                return new VerificationResultDto(
+                    verified: false,
+                    reason: 'Channel has no webhook secret configured.',
+                );
+            }
+
             $verifyToken = (string) $request->query('hub_verify_token', '');
-            $verified = hash_equals((string) $channel->webhook_secret, $verifyToken);
+            $verified = hash_equals($secret, $verifyToken);
 
             return new VerificationResultDto(
                 verified: $verified,
@@ -26,6 +35,14 @@ final class WhatsAppWebhookVerifier implements WebhookVerifierContract
 
         $signature = (string) $request->header('X-Hub-Signature-256', '');
         $secret = (string) ($channel->credentials['app_secret'] ?? $channel->webhook_secret);
+
+        if ($secret === '') {
+            return new VerificationResultDto(
+                verified: false,
+                reason: 'Channel has no webhook secret configured.',
+            );
+        }
+
         $expected = 'sha256='.hash_hmac('sha256', $request->getContent(), $secret);
         $verified = $signature !== '' && hash_equals($expected, $signature);
 

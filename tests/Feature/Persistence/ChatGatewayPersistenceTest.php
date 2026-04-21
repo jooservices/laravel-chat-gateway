@@ -27,6 +27,9 @@ final class ChatGatewayPersistenceTest extends TestCase
         $this->assertTrue(Schema::hasTable('chat_webhook_events'));
         $this->assertTrue(Schema::hasTable('chat_message_status_logs'));
         $this->assertTrue(Schema::hasTable('chat_polling_states'));
+        $this->assertTrue(Schema::hasColumn('chat_conversations', 'chat_type'));
+        $this->assertTrue(Schema::hasColumn('chat_conversations', 'chat_title'));
+        $this->assertTrue(Schema::hasColumn('chat_conversations', 'chat_username'));
     }
 
     public function test_model_relationships_are_wired(): void

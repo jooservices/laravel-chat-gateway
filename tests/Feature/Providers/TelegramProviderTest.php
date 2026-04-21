@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace JOOservices\LaravelChatGateway\Tests\Feature\Providers;
 
 use Illuminate\Http\Request;
+use InvalidArgumentException;
 use JOOservices\Client\Contracts\HttpClientInterface;
 use JOOservices\Client\Contracts\ResponseWrapperInterface;
 use JOOservices\LaravelChatGateway\Contracts\Providers\ProviderHttpClientFactoryContract;
@@ -48,6 +49,50 @@ final class TelegramProviderTest extends TestCase
         $request = Request::create('/hook', 'POST', server: ['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN' => 'telegram-secret']);
 
         $this->assertTrue($provider->verify($request, $channel)->verified);
+    }
+
+    public function test_it_rejects_telegram_secret_when_channel_secret_is_empty(): void
+    {
+        $provider = $this->app->make(TelegramProvider::class);
+        $channel = $this->makeChannel('telegram', 'telegram-empty-secret', webhookSecret: '');
+        $request = Request::create('/hook', 'POST', server: ['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN' => '']);
+
+        $result = $provider->verify($request, $channel);
+
+        $this->assertFalse($result->verified);
+        $this->assertSame('Channel has no webhook secret configured.', $result->reason);
+    }
+
+    public function test_it_maps_telegram_chat_origin_fields(): void
+    {
+        $provider = $this->app->make(TelegramProvider::class);
+        $channel = $this->makeChannel('telegram', 'telegram-default');
+
+        $payload = [
+            'update_id' => 2001,
+            'message' => [
+                'message_id' => 21,
+                'date' => 1713686400,
+                'chat' => [
+                    'id' => 'tg-group-1',
+                    'type' => 'supergroup',
+                    'title' => 'Support Room',
+                    'username' => 'support_room',
+                ],
+                'from' => [
+                    'id' => 'tg-user-1',
+                    'username' => 'alice',
+                    'first_name' => 'Alice',
+                ],
+                'text' => 'Hello telegram',
+            ],
+        ];
+
+        $message = $provider->parser()->parse($payload, [], $channel);
+
+        $this->assertSame('supergroup', $message->conversation->chatType);
+        $this->assertSame('Support Room', $message->conversation->chatTitle);
+        $this->assertSame('support_room', $message->conversation->chatUsername);
     }
 
     public function test_it_sends_messages_through_mocked_client_factory(): void
@@ -107,7 +152,25 @@ final class TelegramProviderTest extends TestCase
         $this->assertSame(1001, $result->updates[0]['update_id']);
     }
 
-    private function makeChannel(string $provider, string $channelKey): ChatChannel
+    public function test_it_throws_when_telegram_bot_token_is_missing_for_polling(): void
+    {
+        $provider = $this->app->make(TelegramProvider::class);
+        $channel = $this->makeChannel('telegram', 'telegram-missing-token', credentials: []);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Telegram bot_token credential is missing for channel [telegram-missing-token].');
+
+        $provider->pollingFetcher()->fetch(
+            $channel,
+            new ChatPollingState(['provider' => 'telegram', 'channel_id' => $channel->id, 'offset' => 1001]),
+            new PollingBatchOptionsDto(timeout: 30, limit: 100),
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $credentials
+     */
+    private function makeChannel(string $provider, string $channelKey, array $credentials = ['bot_token' => 'bot-token'], string $webhookSecret = 'telegram-secret'): ChatChannel
     {
         return ChatChannel::query()->create([
             'provider' => $provider,
@@ -115,9 +178,9 @@ final class TelegramProviderTest extends TestCase
             'name' => ucfirst($provider),
             'status' => 'active',
             'is_default' => true,
-            'credentials' => ['bot_token' => 'bot-token'],
+            'credentials' => $credentials,
             'settings' => [],
-            'webhook_secret' => 'telegram-secret',
+            'webhook_secret' => $webhookSecret,
         ]);
     }
 }

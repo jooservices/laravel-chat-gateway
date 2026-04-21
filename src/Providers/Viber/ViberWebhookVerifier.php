@@ -13,8 +13,17 @@ final class ViberWebhookVerifier implements WebhookVerifierContract
 {
     public function verify(Request $request, ChatChannel $channel): VerificationResultDto
     {
+        $secret = (string) $channel->webhook_secret;
+
+        if ($secret === '') {
+            return new VerificationResultDto(
+                verified: false,
+                reason: 'Channel has no webhook secret configured.',
+            );
+        }
+
         $signature = (string) $request->header('X-Viber-Content-Signature', '');
-        $expected = hash_hmac('sha256', $request->getContent(), (string) $channel->webhook_secret);
+        $expected = hash_hmac('sha256', $request->getContent(), $secret);
         $verified = $signature !== '' && hash_equals($expected, $signature);
 
         return new VerificationResultDto(

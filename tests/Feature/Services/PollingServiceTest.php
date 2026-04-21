@@ -7,6 +7,7 @@ namespace JOOservices\LaravelChatGateway\Tests\Feature\Services;
 use JOOservices\Client\Contracts\HttpClientInterface;
 use JOOservices\Client\Contracts\ResponseWrapperInterface;
 use JOOservices\Client\Exceptions\NetworkConnectionException;
+use InvalidArgumentException;
 use JOOservices\LaravelChatGateway\Contracts\Providers\ProviderHttpClientFactoryContract;
 use JOOservices\LaravelChatGateway\Contracts\Services\InboundIngestionServiceContract;
 use JOOservices\LaravelChatGateway\Contracts\Services\PollingServiceContract;
@@ -112,15 +113,58 @@ final class PollingServiceTest extends TestCase
         $this->app->make(PollingServiceContract::class)->poll('telegram', new PollingBatchOptionsDto(channelKey: $channel->channel_key));
     }
 
-    private function makePollingChannel(): ChatChannel
+    public function test_it_throws_when_the_telegram_channel_has_no_bot_token(): void
+    {
+        $channel = $this->makePollingChannel(channelKey: 'telegram-missing-token', token: '');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Telegram bot_token credential is missing for channel [telegram-missing-token].');
+
+        $this->app->make(PollingServiceContract::class)->poll('telegram', new PollingBatchOptionsDto(channelKey: $channel->channel_key));
+    }
+
+    public function test_it_uses_channel_aware_dedupe_for_polled_updates(): void
+    {
+        $firstChannel = $this->makePollingChannel(channelKey: 'telegram-one', token: 'bot-token-1');
+        $secondChannel = $this->makePollingChannel(channelKey: 'telegram-two', token: 'bot-token-2', isDefault: false);
+        $payload = $this->loadJsonFixture('telegram/poll_get_updates_text.json');
+        $secondPayload = $this->loadJsonFixture('telegram/poll_get_updates_text.json');
+        $secondPayload['result'][0]['message']['message_id'] = 12;
+
+        $factory = Mockery::mock(ProviderHttpClientFactoryContract::class);
+        $client = Mockery::mock(HttpClientInterface::class);
+        $responseOne = Mockery::mock(ResponseWrapperInterface::class);
+        $responseTwo = Mockery::mock(ResponseWrapperInterface::class);
+
+        $factory->shouldReceive('make')->twice()->andReturn($client);
+        $client->shouldReceive('post')->once()->with('/botbot-token-1/getUpdates', Mockery::type('array'))->andReturn($responseOne);
+        $client->shouldReceive('post')->once()->with('/botbot-token-2/getUpdates', Mockery::type('array'))->andReturn($responseTwo);
+        $responseOne->shouldReceive('json')->once()->andReturn($payload);
+        $responseTwo->shouldReceive('json')->once()->andReturn($secondPayload);
+        $this->app->instance(ProviderHttpClientFactoryContract::class, $factory);
+        $this->app->forgetInstance(PollingServiceContract::class);
+        $this->app->forgetInstance(ChatGatewayManager::class);
+
+        $service = $this->app->make(PollingServiceContract::class);
+        $first = $service->poll('telegram', new PollingBatchOptionsDto(channelKey: $firstChannel->channel_key));
+        $second = $service->poll('telegram', new PollingBatchOptionsDto(channelKey: $secondChannel->channel_key));
+
+        $this->assertSame(1, $first->processedCount);
+        $this->assertSame(1, $second->processedCount);
+        $this->assertSame(0, $second->deduplicatedCount);
+        $this->assertDatabaseHas('chat_webhook_events', ['channel_id' => $firstChannel->id, 'external_event_id' => '1001', 'status' => 'processed']);
+        $this->assertDatabaseHas('chat_webhook_events', ['channel_id' => $secondChannel->id, 'external_event_id' => '1001', 'status' => 'processed']);
+    }
+
+    private function makePollingChannel(string $channelKey = 'telegram-default', string $token = 'bot-token', bool $isDefault = true): ChatChannel
     {
         return ChatChannel::query()->create([
             'provider' => 'telegram',
-            'channel_key' => 'telegram-default',
+            'channel_key' => $channelKey,
             'name' => 'Telegram',
             'status' => 'active',
-            'is_default' => true,
-            'credentials' => ['bot_token' => 'bot-token'],
+            'is_default' => $isDefault,
+            'credentials' => $token !== '' ? ['bot_token' => $token] : [],
             'settings' => [
                 'inbound_mode' => 'poll',
                 'polling' => ['enabled' => true],

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace JOOservices\LaravelChatGateway\Contracts\Repositories;
 
+use JOOservices\LaravelChatGateway\DTOs\ProviderChannelUpsertDto;
 use JOOservices\LaravelChatGateway\Models\ChatChannel;
 
 interface ChatChannelRepositoryContract
@@ -13,4 +14,12 @@ interface ChatChannelRepositoryContract
     public function findDefaultByProvider(string $provider): ?ChatChannel;
 
     public function findById(int $channelId): ?ChatChannel;
+
+    public function createForProvider(string $provider, ProviderChannelUpsertDto $data): ChatChannel;
+
+    public function updateFromDto(ChatChannel $channel, ProviderChannelUpsertDto $data): ChatChannel;
+
+    public function setStatus(ChatChannel $channel, string $status): ChatChannel;
+
+    public function markDefaultWithinProvider(ChatChannel $channel): ChatChannel;
 }
