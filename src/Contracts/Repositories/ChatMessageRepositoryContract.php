@@ -14,6 +14,8 @@ interface ChatMessageRepositoryContract
      */
     public function create(array $attributes): ChatMessage;
 
+    public function findById(int $messageId): ?ChatMessage;
+
     public function findByProviderMessageId(string $provider, string $externalMessageId): ?ChatMessage;
 
     /**

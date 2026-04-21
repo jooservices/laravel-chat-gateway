@@ -24,6 +24,14 @@ final class ChatMessageRepository extends EloquentRepository implements ChatMess
         return $message;
     }
 
+    public function findById(int $messageId): ?ChatMessage
+    {
+        /** @var ?ChatMessage $message */
+        $message = $this->newQuery()->find($messageId);
+
+        return $message;
+    }
+
     public function findByProviderMessageId(string $provider, string $externalMessageId): ?ChatMessage
     {
         /** @var ?ChatMessage $message */

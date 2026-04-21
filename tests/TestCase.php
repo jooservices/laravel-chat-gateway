@@ -48,7 +48,12 @@ abstract class TestCase extends Orchestra
         $config->set('events.eventsourcing.enabled', false);
         $config->set('events.event_log.enabled', false);
         $config->set('chat-gateway.cache.store', 'array');
-        $config->set('chat-gateway.queue.outbound_enabled', false);
+        $config->set('chat-gateway.queue.enabled', false);
+        $config->set('chat-gateway.queue.connection', 'sync');
+        $config->set('chat-gateway.queue.queues.outbound', 'chat-outbound');
+        $config->set('chat-gateway.queue.outbound.tries', 3);
+        $config->set('chat-gateway.queue.outbound.timeout', 120);
+        $config->set('chat-gateway.queue.outbound.backoff', [10, 30, 60]);
         $config->set('chat-gateway.events.audit_enabled', false);
         $config->set('chat-gateway.events.sourcing_enabled', false);
     }

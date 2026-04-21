@@ -13,6 +13,7 @@ use JOOservices\LaravelChatGateway\Contracts\Repositories\ChatMessageRepositoryC
 use JOOservices\LaravelChatGateway\Contracts\Repositories\ChatMessageStatusLogRepositoryContract;
 use JOOservices\LaravelChatGateway\Contracts\Services\ChannelServiceContract;
 use JOOservices\LaravelChatGateway\Contracts\Services\MessageServiceContract;
+use JOOservices\LaravelChatGateway\Contracts\Services\QueueDispatchServiceContract;
 use JOOservices\LaravelChatGateway\DTOs\ContactDto;
 use JOOservices\LaravelChatGateway\DTOs\ConversationContextDto;
 use JOOservices\LaravelChatGateway\DTOs\InboundWebhookDto;
@@ -39,6 +40,7 @@ final class MessageService implements MessageServiceContract
         private readonly ChatAttachmentRepositoryContract $attachmentRepository,
         private readonly ChatMessageStatusLogRepositoryContract $statusLogRepository,
         private readonly ChatGatewayManager $manager,
+        private readonly QueueDispatchServiceContract $queueDispatchService,
         private readonly Dispatcher $events,
     ) {}
 
@@ -75,6 +77,77 @@ final class MessageService implements MessageServiceContract
     }
 
     public function send(OutboundMessageDto $message): OutboundMessageResultDto
+    {
+        [$stored, $channel, $resolvedMessage] = $this->prepareOutboundMessage($message);
+
+        $this->events->dispatch(new OutgoingMessageCreated($stored));
+
+        if ($this->queueEnabled()) {
+            $this->queueSend((int) $stored->getKey());
+            $this->events->dispatch(new OutgoingMessageQueued($stored));
+
+            return new OutboundMessageResultDto(true, 'queued');
+        }
+
+        return $this->sendStoredMessage($stored, $channel, $resolvedMessage);
+    }
+
+    public function queueSend(int $messageId): void
+    {
+        $this->queueDispatchService->dispatchChatMessage($messageId);
+    }
+
+    public function sendQueued(int $messageId): OutboundMessageResultDto
+    {
+        $stored = $this->messageRepository->findById($messageId);
+
+        if ($stored === null) {
+            throw new ChatGatewayException('Outbound message could not be resolved for queued sending.');
+        }
+
+        $conversation = $stored->conversation;
+
+        if ($conversation === null) {
+            throw new ChatGatewayException('Outbound message conversation could not be resolved for queued sending.');
+        }
+
+        $channel = $conversation->channel;
+        $resolvedMessage = $this->buildQueuedOutboundMessage($stored, $conversation);
+
+        return $this->sendStoredMessage($stored, $channel, $resolvedMessage);
+    }
+
+    public function updateStatus(ChatMessage $message, string $newStatus, ?string $providerStatus = null, ?array $payload = null): ChatMessage
+    {
+        $oldStatus = $message->status;
+
+        $attributes = [
+            'status' => $newStatus,
+        ];
+
+        if ($newStatus === 'delivered') {
+            $attributes['delivered_at'] = CarbonImmutable::now();
+        }
+
+        if ($newStatus === 'read') {
+            $attributes['read_at'] = CarbonImmutable::now();
+        }
+
+        if ($newStatus === 'failed') {
+            $attributes['failed_at'] = CarbonImmutable::now();
+        }
+
+        $updated = $this->messageRepository->updateMessage($message, $attributes);
+        $this->statusLogRepository->createLog($updated, $oldStatus, $newStatus, $providerStatus, $payload);
+        $this->events->dispatch(new MessageStatusUpdated($updated, $oldStatus, $newStatus, $providerStatus, $payload));
+
+        return $updated;
+    }
+
+    /**
+     * @return array{0: ChatMessage, 1: ChatChannel, 2: OutboundMessageDto}
+     */
+    private function prepareOutboundMessage(OutboundMessageDto $message): array
     {
         $channel = $this->channelService->resolveOutbound($message);
         $provider = $this->manager->providerForChannel($channel);
@@ -126,19 +199,20 @@ final class MessageService implements MessageServiceContract
             'provider' => $channel->provider,
             'direction' => 'outbound',
             'type' => $message->type,
-            'status' => config('chat-gateway.queue.outbound_enabled', false) ? 'queued' : 'pending',
+            'status' => $this->queueEnabled() ? 'queued' : 'pending',
             'reply_to_message_id' => $message->replyToMessageId,
             'content' => $message->content,
             'normalized_payload' => $resolvedMessage->toArray(),
         ]);
 
-        $this->events->dispatch(new OutgoingMessageCreated($stored));
+        return [$stored, $channel, $resolvedMessage];
+    }
 
-        if ((bool) config('chat-gateway.queue.outbound_enabled', false)) {
-            $this->events->dispatch(new OutgoingMessageQueued($stored));
-        }
-
-        $result = $provider->send($channel, $resolvedMessage);
+    private function sendStoredMessage(ChatMessage $stored, ChatChannel $channel, OutboundMessageDto $message): OutboundMessageResultDto
+    {
+        $provider = $this->manager->providerForChannel($channel);
+        $oldStatus = $stored->status;
+        $result = $provider->send($channel, $message);
 
         if ($result->successful) {
             $updated = $this->messageRepository->updateMessage($stored, [
@@ -148,7 +222,7 @@ final class MessageService implements MessageServiceContract
                 'sent_at' => CarbonImmutable::now(),
             ]);
 
-            $this->statusLogRepository->createLog($updated, $stored->status, $result->status, $result->providerStatus, $result->responsePayload);
+            $this->statusLogRepository->createLog($updated, $oldStatus, $result->status, $result->providerStatus, $result->responsePayload);
             $this->events->dispatch(new OutgoingMessageSent($updated, $result));
 
             return $result;
@@ -161,37 +235,65 @@ final class MessageService implements MessageServiceContract
             'failed_at' => CarbonImmutable::now(),
         ]);
 
-        $this->statusLogRepository->createLog($updated, $stored->status, 'failed', $result->providerStatus, $result->responsePayload);
+        $this->statusLogRepository->createLog($updated, $oldStatus, 'failed', $result->providerStatus, $result->responsePayload);
         $this->events->dispatch(new OutgoingMessageFailed($updated, $result->errorMessage ?? 'Outbound delivery failed.', $result->responsePayload));
 
         return $result;
     }
 
-    public function updateStatus(ChatMessage $message, string $newStatus, ?string $providerStatus = null, ?array $payload = null): ChatMessage
+    private function queueEnabled(): bool
     {
-        $oldStatus = $message->status;
+        return (bool) config('chat-gateway.queue.enabled', true);
+    }
 
-        $attributes = [
-            'status' => $newStatus,
-        ];
+    private function buildQueuedOutboundMessage(ChatMessage $stored, ChatConversation $conversation): OutboundMessageDto
+    {
+        $payload = $stored->normalized_payload;
 
-        if ($newStatus === 'delivered') {
-            $attributes['delivered_at'] = CarbonImmutable::now();
+        if (! is_array($payload)) {
+            $payload = [];
         }
 
-        if ($newStatus === 'read') {
-            $attributes['read_at'] = CarbonImmutable::now();
-        }
+        $channel = $conversation->channel;
+        $channelKey = isset($payload['channelKey']) && is_string($payload['channelKey'])
+            ? $payload['channelKey']
+            : $channel->channel_key;
 
-        if ($newStatus === 'failed') {
-            $attributes['failed_at'] = CarbonImmutable::now();
-        }
+        $externalChatId = isset($payload['externalChatId']) && is_string($payload['externalChatId'])
+            ? $payload['externalChatId']
+            : $conversation->external_chat_id;
 
-        $updated = $this->messageRepository->updateMessage($message, $attributes);
-        $this->statusLogRepository->createLog($updated, $oldStatus, $newStatus, $providerStatus, $payload);
-        $this->events->dispatch(new MessageStatusUpdated($updated, $oldStatus, $newStatus, $providerStatus, $payload));
+        $type = isset($payload['type']) && is_string($payload['type'])
+            ? $payload['type']
+            : $stored->type;
 
-        return $updated;
+        $content = isset($payload['content']) && is_string($payload['content'])
+            ? $payload['content']
+            : $stored->content;
+
+        $attachments = isset($payload['attachments']) && is_array($payload['attachments'])
+            ? $payload['attachments']
+            : [];
+
+        $replyToMessageId = isset($payload['replyToMessageId']) && is_string($payload['replyToMessageId'])
+            ? $payload['replyToMessageId']
+            : null;
+
+        $meta = isset($payload['meta']) && is_array($payload['meta'])
+            ? $payload['meta']
+            : null;
+
+        return new OutboundMessageDto(
+            conversationId: $conversation->id,
+            channelId: $channel->id,
+            channelKey: $channelKey,
+            externalChatId: $externalChatId,
+            type: $type,
+            content: $content,
+            attachments: $attachments,
+            replyToMessageId: $replyToMessageId,
+            meta: $meta,
+        );
     }
 
     /**

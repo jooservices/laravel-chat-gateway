@@ -40,8 +40,18 @@ return [
     ],
 
     'queue' => [
+        'enabled' => env('CHAT_GATEWAY_QUEUE_ENABLED', true),
         'connection' => env('CHAT_GATEWAY_QUEUE_CONNECTION'),
-        'outbound_enabled' => false,
+        'queues' => [
+            'outbound' => env('CHAT_GATEWAY_QUEUE_OUTBOUND', 'chat-outbound'),
+            'side_effects' => env('CHAT_GATEWAY_QUEUE_SIDE_EFFECTS', 'chat-side-effects'),
+            'inbound_deferred' => env('CHAT_GATEWAY_QUEUE_INBOUND_DEFERRED', 'chat-inbound-deferred'),
+        ],
+        'outbound' => [
+            'tries' => 3,
+            'timeout' => 120,
+            'backoff' => [10, 30, 60],
+        ],
     ],
 
     'cache' => [

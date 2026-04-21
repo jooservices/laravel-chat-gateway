@@ -19,6 +19,10 @@ interface MessageServiceContract
 
     public function send(OutboundMessageDto $message): OutboundMessageResultDto;
 
+    public function queueSend(int $messageId): void;
+
+    public function sendQueued(int $messageId): OutboundMessageResultDto;
+
     /**
      * @param  array<string, mixed>|null  $payload
      */

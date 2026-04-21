@@ -9,6 +9,7 @@ This package provides:
 - inbound webhook receiving and verification
 - inbound polling with persisted offsets
 - Redis plus database deduplication
+- Redis queue support for outbound delivery with Horizon-friendly shared queues
 - payload normalization through DTOs
 - operational persistence in MySQL or MariaDB
 - outbound message sending
@@ -60,6 +61,8 @@ This repository includes a local-only Laravel 12 sandbox app at `_sandbox/larave
 - the sandbox is intentionally inside this package repository
 - `_sandbox/` is git-ignored and must remain local-only
 - the sandbox is wired for MySQL or MariaDB, MongoDB, Redis, and Telegram-first testing
+
+Outbound delivery can run inline or through Redis queues. Horizon supervision is expected to target the shared package queues by purpose, especially `chat-outbound` for provider sends.
 
 Use the sandbox only when you want a ready-made local host app for package development, migration checks, webhook verification, or polling validation.
 

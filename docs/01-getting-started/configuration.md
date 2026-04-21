@@ -19,6 +19,19 @@ Important groups:
 
 Runtime credentials belong primarily in `chat_channels.credentials` and `chat_channels.settings`, not only in config.
 
+Queue config is purpose-based, not provider-based:
+
+- `chat-gateway.queue.enabled`
+- `chat-gateway.queue.connection`
+- `chat-gateway.queue.queues.outbound`
+- `chat-gateway.queue.queues.side_effects`
+- `chat-gateway.queue.queues.inbound_deferred`
+- `chat-gateway.queue.outbound.tries`
+- `chat-gateway.queue.outbound.timeout`
+- `chat-gateway.queue.outbound.backoff`
+
+Redis plus Horizon is the intended queue runtime. Outbound sends use the shared `chat-outbound` queue across all providers. Webhook verification, inbound dedupe, polling fetch, minimal inbound persistence, and polling cursor updates remain synchronous.
+
 Provider channel writes should validate provider-specific credentials and settings before persistence. The package now exposes a `ProviderChannelService` for register, update, activate, deactivate, and default-channel operations while keeping runtime credentials DB-backed in `chat_channels`.
 
 Inbound mode defaults:
