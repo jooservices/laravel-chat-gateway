@@ -4,11 +4,17 @@ declare(strict_types=1);
 
 namespace JOOservices\LaravelChatGateway\Contracts\Repositories;
 
+use Illuminate\Database\Eloquent\Collection;
 use JOOservices\LaravelChatGateway\DTOs\ProviderChannelUpsertDto;
 use JOOservices\LaravelChatGateway\Models\ChatChannel;
 
 interface ChatChannelRepositoryContract
 {
+    /**
+     * @return Collection<int, ChatChannel>
+     */
+    public function listAll(): Collection;
+
     public function findByProviderAndKey(string $provider, string $channelKey): ?ChatChannel;
 
     public function findDefaultByProvider(string $provider): ?ChatChannel;

@@ -6,6 +6,7 @@ namespace JOOservices\LaravelChatGateway\Services;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Database\Eloquent\Collection;
 use JOOservices\LaravelChatGateway\Contracts\Repositories\ChatAttachmentRepositoryContract;
 use JOOservices\LaravelChatGateway\Contracts\Repositories\ChatContactRepositoryContract;
 use JOOservices\LaravelChatGateway\Contracts\Repositories\ChatConversationRepositoryContract;
@@ -14,6 +15,7 @@ use JOOservices\LaravelChatGateway\Contracts\Repositories\ChatMessageStatusLogRe
 use JOOservices\LaravelChatGateway\Contracts\Services\ChannelServiceContract;
 use JOOservices\LaravelChatGateway\Contracts\Services\MessageServiceContract;
 use JOOservices\LaravelChatGateway\Contracts\Services\QueueDispatchServiceContract;
+use JOOservices\LaravelChatGateway\DTOs\AttachmentDto;
 use JOOservices\LaravelChatGateway\DTOs\ContactDto;
 use JOOservices\LaravelChatGateway\DTOs\ConversationContextDto;
 use JOOservices\LaravelChatGateway\DTOs\InboundWebhookDto;
@@ -92,6 +94,27 @@ final class MessageService implements MessageServiceContract
         return $this->sendStoredMessage($stored, $channel, $resolvedMessage);
     }
 
+    public function createOutboundFromApi(array $data): ChatMessage
+    {
+        $provider = (string) $data['provider'];
+        $this->manager->provider($provider);
+        $channel = $this->channelService->resolveProviderChannel($provider, (string) $data['channel_key']);
+
+        [$stored] = $this->prepareOutboundMessage(new OutboundMessageDto(
+            conversationId: isset($data['conversation_id']) ? (int) $data['conversation_id'] : null,
+            channelId: (int) $channel->getKey(),
+            channelKey: $channel->channel_key,
+            externalChatId: isset($data['external_chat_id']) ? (string) $data['external_chat_id'] : null,
+            type: isset($data['type']) ? (string) $data['type'] : 'text',
+            content: isset($data['content']) ? (string) $data['content'] : null,
+            attachments: $this->mapAttachmentDtos($data['attachments'] ?? []),
+            replyToMessageId: isset($data['reply_to_message_id']) ? (string) $data['reply_to_message_id'] : null,
+            meta: isset($data['meta']) && is_array($data['meta']) ? $data['meta'] : null,
+        ));
+
+        return $stored;
+    }
+
     public function queueSend(int $messageId): void
     {
         $this->queueDispatchService->dispatchChatMessage($messageId);
@@ -115,6 +138,42 @@ final class MessageService implements MessageServiceContract
         $resolvedMessage = $this->buildQueuedOutboundMessage($stored, $conversation);
 
         return $this->sendStoredMessage($stored, $channel, $resolvedMessage);
+    }
+
+    public function retry(int $messageId): void
+    {
+        $message = $this->messageRepository->findById($messageId);
+
+        if ($message === null) {
+            throw new ChatGatewayException('Outbound message could not be resolved for retry.');
+        }
+
+        if ($message->direction !== 'outbound') {
+            throw new ChatGatewayException('Only outbound messages can be retried.');
+        }
+
+        $oldStatus = $message->status;
+
+        $updated = $this->messageRepository->updateMessage($message, [
+            'status' => 'queued',
+            'failed_at' => null,
+            'error_message' => null,
+        ]);
+
+        $this->statusLogRepository->createLog($updated, $oldStatus, 'queued');
+        $this->events->dispatch(new OutgoingMessageQueued($updated));
+
+        $this->queueSend($messageId);
+    }
+
+    public function getMessage(int $messageId): ?ChatMessage
+    {
+        return $this->messageRepository->findById($messageId);
+    }
+
+    public function listConversationMessages(ChatConversation $conversation): Collection
+    {
+        return $this->messageRepository->listByConversation($conversation);
     }
 
     public function updateStatus(ChatMessage $message, string $newStatus, ?string $providerStatus = null, ?array $payload = null): ChatMessage
@@ -244,6 +303,37 @@ final class MessageService implements MessageServiceContract
     private function queueEnabled(): bool
     {
         return (bool) config('chat-gateway.queue.enabled', true);
+    }
+
+    /**
+     * @param  mixed  $attachments
+     * @return list<AttachmentDto>
+     */
+    private function mapAttachmentDtos(mixed $attachments): array
+    {
+        if (! is_array($attachments)) {
+            return [];
+        }
+
+        $mapped = [];
+
+        foreach ($attachments as $attachment) {
+            if (! is_array($attachment)) {
+                continue;
+            }
+
+            $mapped[] = new AttachmentDto(
+                type: isset($attachment['type']) ? (string) $attachment['type'] : 'file',
+                externalFileId: isset($attachment['external_file_id']) ? (string) $attachment['external_file_id'] : null,
+                url: isset($attachment['url']) ? (string) $attachment['url'] : null,
+                mimeType: isset($attachment['mime_type']) ? (string) $attachment['mime_type'] : null,
+                fileName: isset($attachment['file_name']) ? (string) $attachment['file_name'] : null,
+                fileSize: isset($attachment['file_size']) ? (int) $attachment['file_size'] : null,
+                meta: isset($attachment['meta']) && is_array($attachment['meta']) ? $attachment['meta'] : null,
+            );
+        }
+
+        return $mapped;
     }
 
     private function buildQueuedOutboundMessage(ChatMessage $stored, ChatConversation $conversation): OutboundMessageDto

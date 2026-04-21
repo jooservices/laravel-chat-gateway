@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace JOOservices\LaravelChatGateway\Repositories;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Collection;
 use JOOservices\LaravelChatGateway\Contracts\Repositories\ChatConversationRepositoryContract;
 use JOOservices\LaravelChatGateway\DTOs\ConversationContextDto;
 use JOOservices\LaravelChatGateway\Models\ChatChannel;
 use JOOservices\LaravelChatGateway\Models\ChatContact;
 use JOOservices\LaravelChatGateway\Models\ChatConversation;
+use JOOservices\LaravelChatGateway\Models\ChatMessage;
 use Jooservices\LaravelRepository\Repositories\EloquentRepository;
 
 final class ChatConversationRepository extends EloquentRepository implements ChatConversationRepositoryContract
@@ -17,6 +19,18 @@ final class ChatConversationRepository extends EloquentRepository implements Cha
     public function __construct(ChatConversation $model)
     {
         parent::__construct($model);
+    }
+
+    public function listAll(): Collection
+    {
+        /** @var Collection<int, ChatConversation> $conversations */
+        $conversations = $this->newQuery()
+            ->with(['channel', 'contact'])
+            ->orderByDesc('last_message_at')
+            ->orderByDesc('id')
+            ->get();
+
+        return $conversations;
     }
 
     public function findByExternalChatId(int $channelId, string $externalChatId): ?ChatConversation
@@ -33,9 +47,23 @@ final class ChatConversationRepository extends EloquentRepository implements Cha
     public function findById(int $conversationId): ?ChatConversation
     {
         /** @var ?ChatConversation $conversation */
-        $conversation = $this->newQuery()->find($conversationId);
+        $conversation = $this->newQuery()
+            ->with(['channel', 'contact'])
+            ->find($conversationId);
 
         return $conversation;
+    }
+
+    public function listMessages(ChatConversation $conversation): Collection
+    {
+        /** @var Collection<int, ChatMessage> $messages */
+        $messages = $conversation->messages()
+            ->with(['attachments', 'statusLogs'])
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get();
+
+        return $messages;
     }
 
     public function createOrUpdate(ChatChannel $channel, ChatContact $contact, ConversationContextDto $conversation): ChatConversation

@@ -12,3 +12,5 @@
 - clarified that the package is usable directly in any Laravel app and that `_sandbox/` remains local-only for integration testing
 - added Copilot ignore rules so `_sandbox/` and generated dependencies stay out of AI context by default
 - documented shared Redis plus Horizon outbound queue support, named package queues, and the synchronous inbound boundaries
+- documented the `/api/v1/chat-gateway` REST API surface for webhooks, messages, conversations, and channels
+- documented the protected API middleware config, shared `DispatchChatMessageJob`, PATCH-based channel state updates, and unsupported-provider API errors

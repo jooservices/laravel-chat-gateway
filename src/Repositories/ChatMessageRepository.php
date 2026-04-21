@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace JOOservices\LaravelChatGateway\Repositories;
 
+use Illuminate\Database\Eloquent\Collection;
 use JOOservices\LaravelChatGateway\Contracts\Repositories\ChatMessageRepositoryContract;
 use JOOservices\LaravelChatGateway\Models\ChatConversation;
 use JOOservices\LaravelChatGateway\Models\ChatMessage;
@@ -27,7 +28,9 @@ final class ChatMessageRepository extends EloquentRepository implements ChatMess
     public function findById(int $messageId): ?ChatMessage
     {
         /** @var ?ChatMessage $message */
-        $message = $this->newQuery()->find($messageId);
+        $message = $this->newQuery()
+            ->with(['conversation.channel', 'attachments', 'statusLogs'])
+            ->find($messageId);
 
         return $message;
     }
@@ -49,6 +52,18 @@ final class ChatMessageRepository extends EloquentRepository implements ChatMess
         $message->save();
 
         return $message->refresh();
+    }
+
+    public function listByConversation(ChatConversation $conversation): Collection
+    {
+        /** @var Collection<int, ChatMessage> $messages */
+        $messages = $conversation->messages()
+            ->with(['attachments', 'statusLogs'])
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get();
+
+        return $messages;
     }
 
     public function latestInbound(ChatConversation $conversation): ?ChatMessage

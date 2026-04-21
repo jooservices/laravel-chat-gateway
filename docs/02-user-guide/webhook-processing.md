@@ -2,6 +2,12 @@
 
 Webhook processing is synchronous by default and writes operational records immediately.
 
+Public provider-facing webhook API endpoints:
+
+- `POST /api/v1/chat-gateway/webhooks/telegram`
+- `POST /api/v1/chat-gateway/webhooks/whatsapp`
+- `POST /api/v1/chat-gateway/webhooks/viber`
+
 Inbound ingestion runs inside a database transaction on the package model connection so contact, conversation, message, status-log, and close-state writes either commit together or roll back together.
 
 Normalized event taxonomy distinguishes at least:

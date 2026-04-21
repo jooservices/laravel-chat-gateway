@@ -10,6 +10,7 @@ This package provides:
 - inbound polling with persisted offsets
 - Redis plus database deduplication
 - Redis queue support for outbound delivery with Horizon-friendly shared queues
+- REST API routes under `/api/v1/chat-gateway`
 - payload normalization through DTOs
 - operational persistence in MySQL or MariaDB
 - outbound message sending
@@ -63,6 +64,24 @@ This repository includes a local-only Laravel 12 sandbox app at `_sandbox/larave
 - the sandbox is wired for MySQL or MariaDB, MongoDB, Redis, and Telegram-first testing
 
 Outbound delivery can run inline or through Redis queues. Horizon supervision is expected to target the shared package queues by purpose, especially `chat-outbound` for provider sends.
+
+The package also exposes a gateway-focused REST API immediately after install:
+
+- `POST /api/v1/chat-gateway/webhooks/telegram`
+- `POST /api/v1/chat-gateway/webhooks/whatsapp`
+- `POST /api/v1/chat-gateway/webhooks/viber`
+- `POST /api/v1/chat-gateway/messages`
+- `GET /api/v1/chat-gateway/messages/{message}`
+- `POST /api/v1/chat-gateway/messages/{message}/retry`
+- `GET /api/v1/chat-gateway/conversations`
+- `GET /api/v1/chat-gateway/conversations/{conversation}`
+- `GET /api/v1/chat-gateway/conversations/{conversation}/messages`
+- `GET /api/v1/chat-gateway/channels`
+- `POST /api/v1/chat-gateway/channels`
+- `GET /api/v1/chat-gateway/channels/{channel}`
+- `PATCH /api/v1/chat-gateway/channels/{channel}`
+
+Protected API routes use `chat-gateway.api.middleware.protected` so host applications can attach auth middleware without modifying package routes.
 
 Use the sandbox only when you want a ready-made local host app for package development, migration checks, webhook verification, or polling validation.
 

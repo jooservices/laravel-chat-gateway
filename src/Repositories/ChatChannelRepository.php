@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace JOOservices\LaravelChatGateway\Repositories;
 
+use Illuminate\Database\Eloquent\Collection;
 use JOOservices\LaravelChatGateway\Contracts\Repositories\ChatChannelRepositoryContract;
 use JOOservices\LaravelChatGateway\DTOs\ProviderChannelUpsertDto;
 use JOOservices\LaravelChatGateway\Models\ChatChannel;
@@ -14,6 +15,18 @@ final class ChatChannelRepository extends EloquentRepository implements ChatChan
     public function __construct(ChatChannel $model)
     {
         parent::__construct($model);
+    }
+
+    public function listAll(): Collection
+    {
+        /** @var Collection<int, ChatChannel> $channels */
+        $channels = $this->newQuery()
+            ->orderByDesc('is_default')
+            ->orderBy('provider')
+            ->orderBy('channel_key')
+            ->get();
+
+        return $channels;
     }
 
     public function findByProviderAndKey(string $provider, string $channelKey): ?ChatChannel

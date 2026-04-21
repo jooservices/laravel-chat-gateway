@@ -17,6 +17,20 @@ The package now exposes `ProviderChannelService` for channel lifecycle writes:
 - activate or deactivate a channel through status changes
 - mark one channel as the provider default
 
+REST API endpoints:
+
+- `GET /api/v1/chat-gateway/channels`
+- `POST /api/v1/chat-gateway/channels`
+- `GET /api/v1/chat-gateway/channels/{channel}`
+- `PATCH /api/v1/chat-gateway/channels/{channel}`
+
+Channel state changes are payload-based on `PATCH /channels/{channel}`:
+
+- `status=active|inactive`
+- `is_default=true|false`
+
+The API does not expose separate activate, deactivate, or default-channel endpoints.
+
 Inbound channel resolution order:
 
 1. route `channelKey`

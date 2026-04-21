@@ -6,6 +6,7 @@ namespace JOOservices\LaravelChatGateway\Services;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Database\Eloquent\Collection;
 use JOOservices\LaravelChatGateway\Contracts\Repositories\ChatConversationRepositoryContract;
 use JOOservices\LaravelChatGateway\Contracts\Services\ConversationServiceContract;
 use JOOservices\LaravelChatGateway\DTOs\InboundWebhookDto;
@@ -23,6 +24,16 @@ final class ConversationService implements ConversationServiceContract
         private readonly Dispatcher $events,
     ) {}
 
+    public function listConversations(): Collection
+    {
+        return $this->conversationRepository->listAll();
+    }
+
+    public function getConversation(int $conversationId): ?ChatConversation
+    {
+        return $this->conversationRepository->findById($conversationId);
+    }
+
     public function resolve(ChatChannel $channel, ChatContact $contact, InboundWebhookDto $event): ChatConversation
     {
         $existing = $this->conversationRepository->findByExternalChatId((int) $channel->getKey(), $event->conversation->externalChatId);
@@ -36,6 +47,11 @@ final class ConversationService implements ConversationServiceContract
         }
 
         return $conversation->refresh();
+    }
+
+    public function listMessages(ChatConversation $conversation): Collection
+    {
+        return $this->conversationRepository->listMessages($conversation);
     }
 
     public function close(ChatConversation $conversation): ChatConversation

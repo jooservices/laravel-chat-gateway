@@ -13,6 +13,8 @@ Provider capability checks run before the HTTP send operation.
 
 Outbound sending can be queued through Redis with Horizon supervising the shared `chat-outbound` queue. The package uses one shared outbound job for all providers, and the real send logic remains in `MessageService` plus the provider sender classes.
 
+The shared outbound job is `DispatchChatMessageJob`. The package does not create provider-specific send jobs or provider-specific outbound queues.
+
 The following inbound steps stay synchronous even when queueing is enabled:
 
 - webhook verification

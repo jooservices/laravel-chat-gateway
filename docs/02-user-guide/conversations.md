@@ -21,4 +21,12 @@ Conversation runtime events:
 - `ConversationUpdated`
 - `ConversationClosed`
 
+REST API endpoints:
+
+- `GET /api/v1/chat-gateway/conversations`
+- `GET /api/v1/chat-gateway/conversations/{conversation}`
+- `GET /api/v1/chat-gateway/conversations/{conversation}/messages`
+
+These endpoints are read-only operational views over the persisted gateway conversations and messages.
+
 `ConversationUpdated` stays runtime-only by default. It is not persisted into sourcing by default.

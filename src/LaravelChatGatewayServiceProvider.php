@@ -79,6 +79,7 @@ final class LaravelChatGatewayServiceProvider extends ServiceProvider
         $this->app->singleton(ChannelServiceContract::class, ChannelService::class);
         $this->app->singleton(ConversationServiceContract::class, ConversationService::class);
         $this->app->singleton(MessageServiceContract::class, MessageService::class);
+        $this->app->singleton(QueueDispatchService::class, QueueDispatchService::class);
         $this->app->singleton(QueueDispatchServiceContract::class, QueueDispatchService::class);
         $this->app->singleton(InboundIngestionServiceContract::class, InboundIngestionService::class);
         $this->app->singleton(InboundModeResolverContract::class, InboundModeResolver::class);
@@ -143,6 +144,9 @@ final class LaravelChatGatewayServiceProvider extends ServiceProvider
             Route::middleware((array) config('chat-gateway.routes.middleware', ['api']))
                 ->prefix((string) config('chat-gateway.routes.prefix', 'chat-gateway'))
                 ->group(__DIR__.'/Routing/routes.php');
+
+            Route::middleware((array) config('chat-gateway.routes.middleware', ['api']))
+                ->group(__DIR__.'/Routing/api.php');
         }
 
         $events->subscribe(WebhookLifecycleSubscriber::class);

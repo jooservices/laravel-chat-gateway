@@ -119,6 +119,50 @@ final class MessageServiceTest extends TestCase
         $this->assertTrue(true);
     }
 
+    public function test_it_retries_an_outbound_message_by_requeueing_it(): void
+    {
+        $conversation = $this->makeConversation();
+        $message = ChatMessage::query()->create([
+            'conversation_id' => $conversation->id,
+            'provider' => 'telegram',
+            'direction' => 'outbound',
+            'type' => 'text',
+            'status' => 'failed',
+            'content' => 'Retry hello',
+            'error_message' => 'failed before retry',
+            'normalized_payload' => [
+                'conversationId' => $conversation->id,
+                'channelId' => $conversation->channel_id,
+                'channelKey' => $conversation->channel->channel_key,
+                'externalChatId' => $conversation->external_chat_id,
+                'type' => 'text',
+                'content' => 'Retry hello',
+                'attachments' => [],
+                'replyToMessageId' => null,
+                'meta' => null,
+            ],
+        ]);
+
+        $dispatchService = Mockery::mock(QueueDispatchServiceContract::class);
+        $dispatchService->shouldReceive('dispatchChatMessage')->once()->with($message->id);
+
+        $this->app->instance(QueueDispatchServiceContract::class, $dispatchService);
+        $this->app->forgetInstance(MessageServiceContract::class);
+
+        $this->app->make(MessageServiceContract::class)->retry($message->id);
+
+        $this->assertDatabaseHas('chat_messages', [
+            'id' => $message->id,
+            'status' => 'queued',
+            'error_message' => null,
+        ]);
+        $this->assertDatabaseHas('chat_message_status_logs', [
+            'message_id' => $message->id,
+            'old_status' => 'failed',
+            'new_status' => 'queued',
+        ]);
+    }
+
     public function test_it_sends_queued_message_via_the_real_provider_flow(): void
     {
         $conversation = $this->makeConversation();

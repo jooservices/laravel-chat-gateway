@@ -19,6 +19,12 @@ return [
         'middleware' => ['api'],
     ],
 
+    'api' => [
+        'middleware' => [
+            'protected' => [],
+        ],
+    ],
+
     'webhooks' => [
         'store_headers' => true,
         'persist_raw_payload' => false,

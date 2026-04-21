@@ -8,6 +8,7 @@ Important groups:
 - `inbound`
 - `database`
 - `routes`
+- `api`
 - `webhooks`
 - `messages`
 - `conversations`
@@ -31,6 +32,12 @@ Queue config is purpose-based, not provider-based:
 - `chat-gateway.queue.outbound.backoff`
 
 Redis plus Horizon is the intended queue runtime. Outbound sends use the shared `chat-outbound` queue across all providers. Webhook verification, inbound dedupe, polling fetch, minimal inbound persistence, and polling cursor updates remain synchronous.
+
+API config is intentionally small:
+
+- `chat-gateway.api.middleware.protected`
+
+This array is applied only to the protected REST endpoints under `/api/v1/chat-gateway`. Public provider-facing webhook endpoints remain outside that protected middleware group.
 
 Provider channel writes should validate provider-specific credentials and settings before persistence. The package now exposes a `ProviderChannelService` for register, update, activate, deactivate, and default-channel operations while keeping runtime credentials DB-backed in `chat_channels`.
 
