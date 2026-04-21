@@ -1,0 +1,12 @@
+/vendor/
+/composer.lock
+/build/
+/.phpunit.cache/
+/.idea/
+/.DS_Store
+/_sandbox/
+/.vscode/
+/.cursor/
+/.copilot/
+/.env
+/.env.*
