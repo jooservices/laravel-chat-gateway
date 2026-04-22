@@ -33,7 +33,15 @@ This repository is the PHP package `jooservices/laravel-chat-gateway`.
 - Mock only the HTTP network boundary.
 - Mock `ProviderHttpClientFactoryContract`.
 - Return mocked `JOOservices\Client\Contracts\HttpClientInterface` and mocked `JOOservices\Client\Contracts\ResponseWrapperInterface`.
+- If a test replaces `ProviderHttpClientFactoryContract`, clear the provider registry singleton before resolving services that use providers.
 - Do not introduce provider-specific fake client classes as the primary pattern.
+
+## API rules
+
+- Provider-facing API webhooks live at `/api/v1/chat-gateway/webhooks/telegram`, `/api/v1/chat-gateway/webhooks/whatsapp`, and `/api/v1/chat-gateway/webhooks/viber`.
+- Outbound API sends use `POST /api/v1/chat-gateway/messages` and must respect `chat-gateway.queue.enabled`.
+- Channel API responses must not expose raw `credentials` or `webhook_secret`; return safe metadata only.
+- Unsupported providers must return a clear JSON client error.
 
 ## Event policy
 

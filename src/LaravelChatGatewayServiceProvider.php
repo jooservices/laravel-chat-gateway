@@ -7,6 +7,7 @@ namespace JOOservices\LaravelChatGateway;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use JOOservices\LaravelChatGateway\Console\Commands\GatewayPollCommand;
 use JOOservices\LaravelChatGateway\Contracts\Providers\ChatProviderContract;
 use JOOservices\LaravelChatGateway\Contracts\Providers\ProviderHttpClientFactoryContract;
 use JOOservices\LaravelChatGateway\Contracts\Repositories\ChatAttachmentRepositoryContract;
@@ -28,7 +29,6 @@ use JOOservices\LaravelChatGateway\Contracts\Services\ProviderChannelServiceCont
 use JOOservices\LaravelChatGateway\Contracts\Services\ProviderRegistryServiceContract;
 use JOOservices\LaravelChatGateway\Contracts\Services\QueueDispatchServiceContract;
 use JOOservices\LaravelChatGateway\Contracts\Services\WebhookServiceContract;
-use JOOservices\LaravelChatGateway\Console\Commands\GatewayPollCommand;
 use JOOservices\LaravelChatGateway\Providers\Telegram\TelegramProvider;
 use JOOservices\LaravelChatGateway\Providers\Telegram\TelegramUpdateFetcher;
 use JOOservices\LaravelChatGateway\Providers\Viber\ViberProvider;
@@ -45,14 +45,14 @@ use JOOservices\LaravelChatGateway\Services\AuditEventBridge;
 use JOOservices\LaravelChatGateway\Services\ChannelService;
 use JOOservices\LaravelChatGateway\Services\ChatGatewayManager;
 use JOOservices\LaravelChatGateway\Services\ConversationService;
+use JOOservices\LaravelChatGateway\Services\DeduplicationService;
 use JOOservices\LaravelChatGateway\Services\InboundIngestionService;
 use JOOservices\LaravelChatGateway\Services\InboundModeResolver;
 use JOOservices\LaravelChatGateway\Services\MessageService;
 use JOOservices\LaravelChatGateway\Services\PollingService;
-use JOOservices\LaravelChatGateway\Services\DeduplicationService;
 use JOOservices\LaravelChatGateway\Services\ProviderChannelService;
-use JOOservices\LaravelChatGateway\Services\ProviderRegistryService;
 use JOOservices\LaravelChatGateway\Services\ProviderHttpClientFactory;
+use JOOservices\LaravelChatGateway\Services\ProviderRegistryService;
 use JOOservices\LaravelChatGateway\Services\QueueDispatchService;
 use JOOservices\LaravelChatGateway\Services\WebhookService;
 use JOOservices\LaravelChatGateway\Subscribers\ConversationLifecycleSubscriber;
@@ -85,15 +85,20 @@ final class LaravelChatGatewayServiceProvider extends ServiceProvider
         $this->app->singleton(InboundModeResolverContract::class, InboundModeResolver::class);
         $this->app->singleton(PollingServiceContract::class, PollingService::class);
         $this->app->singleton(WebhookServiceContract::class, WebhookService::class);
-        $this->app->singleton(ProviderChannelServiceContract::class, ProviderChannelService::class);
-        $this->app->singleton(DeduplicationService::class, DeduplicationService::class);
-
-        $this->app->bind(ProviderRegistryServiceContract::class, ProviderRegistryService::class);
-
         $this->app->bind(TelegramUpdateFetcher::class, TelegramUpdateFetcher::class);
         $this->app->bind(TelegramProvider::class, TelegramProvider::class);
         $this->app->bind(ViberProvider::class, ViberProvider::class);
         $this->app->bind(WhatsAppProvider::class, WhatsAppProvider::class);
+
+        $this->app->singleton(ProviderChannelServiceContract::class, ProviderChannelService::class);
+        $this->app->singleton(DeduplicationService::class, DeduplicationService::class);
+        $this->app->singleton(ProviderRegistryServiceContract::class, function (): ProviderRegistryServiceContract {
+            $registry = $this->app->make(ProviderRegistryService::class);
+
+            $this->registerDefaultProviders($registry);
+
+            return $registry;
+        });
 
         $this->app->bind(GatewayPollCommand::class, GatewayPollCommand::class);
 
@@ -107,23 +112,6 @@ final class LaravelChatGatewayServiceProvider extends ServiceProvider
 
     public function boot(Dispatcher $events): void
     {
-        $this->app->resolving(ProviderRegistryServiceContract::class, function (ProviderRegistryServiceContract $registry): void {
-            if (! $registry->has('telegram')) {
-                $telegram = $this->app->make(TelegramProvider::class);
-                $registry->register($telegram->name(), $telegram);
-            }
-
-            if (! $registry->has('viber')) {
-                $viber = $this->app->make(ViberProvider::class);
-                $registry->register($viber->name(), $viber);
-            }
-
-            if (! $registry->has('whatsapp')) {
-                $whatsApp = $this->app->make(WhatsAppProvider::class);
-                $registry->register($whatsApp->name(), $whatsApp);
-            }
-        });
-
         $this->publishes([
             __DIR__.'/../config/chat-gateway.php' => config_path('chat-gateway.php'),
         ], 'chat-gateway-config');
@@ -152,5 +140,23 @@ final class LaravelChatGatewayServiceProvider extends ServiceProvider
         $events->subscribe(WebhookLifecycleSubscriber::class);
         $events->subscribe(MessageLifecycleSubscriber::class);
         $events->subscribe(ConversationLifecycleSubscriber::class);
+    }
+
+    private function registerDefaultProviders(ProviderRegistryServiceContract $registry): void
+    {
+        if (! $registry->has('telegram')) {
+            $telegram = $this->app->make(TelegramProvider::class);
+            $registry->register($telegram->name(), $telegram);
+        }
+
+        if (! $registry->has('viber')) {
+            $viber = $this->app->make(ViberProvider::class);
+            $registry->register($viber->name(), $viber);
+        }
+
+        if (! $registry->has('whatsapp')) {
+            $whatsApp = $this->app->make(WhatsAppProvider::class);
+            $registry->register($whatsApp->name(), $whatsApp);
+        }
     }
 }

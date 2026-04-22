@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace JOOservices\LaravelChatGateway\Tests\Feature\Services;
 
+use InvalidArgumentException;
 use JOOservices\Client\Contracts\HttpClientInterface;
 use JOOservices\Client\Contracts\ResponseWrapperInterface;
 use JOOservices\Client\Exceptions\NetworkConnectionException;
-use InvalidArgumentException;
 use JOOservices\LaravelChatGateway\Contracts\Providers\ProviderHttpClientFactoryContract;
 use JOOservices\LaravelChatGateway\Contracts\Services\InboundIngestionServiceContract;
 use JOOservices\LaravelChatGateway\Contracts\Services\PollingServiceContract;
+use JOOservices\LaravelChatGateway\Contracts\Services\ProviderRegistryServiceContract;
 use JOOservices\LaravelChatGateway\DTOs\PollingBatchOptionsDto;
 use JOOservices\LaravelChatGateway\Models\ChatChannel;
 use JOOservices\LaravelChatGateway\Providers\Telegram\TelegramProvider;
@@ -142,8 +143,11 @@ final class PollingServiceTest extends TestCase
         $responseOne->shouldReceive('json')->once()->andReturn($payload);
         $responseTwo->shouldReceive('json')->once()->andReturn($secondPayload);
         $this->app->instance(ProviderHttpClientFactoryContract::class, $factory);
+        $this->app->forgetInstance(TelegramUpdateFetcher::class);
+        $this->app->forgetInstance(TelegramProvider::class);
         $this->app->forgetInstance(PollingServiceContract::class);
         $this->app->forgetInstance(ChatGatewayManager::class);
+        $this->app->forgetInstance(ProviderRegistryServiceContract::class);
 
         $service = $this->app->make(PollingServiceContract::class);
         $first = $service->poll('telegram', new PollingBatchOptionsDto(channelKey: $firstChannel->channel_key));
@@ -195,6 +199,7 @@ final class PollingServiceTest extends TestCase
         $this->app->forgetInstance(TelegramProvider::class);
         $this->app->forgetInstance(ChatGatewayManager::class);
         $this->app->forgetInstance(PollingServiceContract::class);
+        $this->app->forgetInstance(ProviderRegistryServiceContract::class);
     }
 
     private function mockTransportException(\Throwable $exception): void
@@ -209,5 +214,6 @@ final class PollingServiceTest extends TestCase
         $this->app->forgetInstance(TelegramProvider::class);
         $this->app->forgetInstance(ChatGatewayManager::class);
         $this->app->forgetInstance(PollingServiceContract::class);
+        $this->app->forgetInstance(ProviderRegistryServiceContract::class);
     }
 }

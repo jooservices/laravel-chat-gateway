@@ -66,6 +66,15 @@ Use this skill when working in `jooservices/laravel-chat-gateway`.
 - The factory must return mocked `HttpClientInterface` and mocked `ResponseWrapperInterface`.
 - Controller tests must hit real routes.
 - Service tests must use the real database.
+- Provider registry is a singleton; when replacing `ProviderHttpClientFactoryContract` in tests, clear the registry singleton before resolving provider-backed services.
+
+## API workflow
+
+- Provider-facing API webhook routes are fixed per provider under `/api/v1/chat-gateway/webhooks/{telegram|whatsapp|viber}`.
+- Outbound API sends use `POST /api/v1/chat-gateway/messages`; the service queues or sends inline based on `chat-gateway.queue.enabled`.
+- `POST /api/v1/chat-gateway/messages` accepts either `conversation_id` or `external_chat_id`.
+- Channel API responses must expose only safe credential metadata, never raw credentials or webhook secrets.
+- Unsupported provider requests must fail with a clear JSON client error.
 
 ## Provider extension workflow
 

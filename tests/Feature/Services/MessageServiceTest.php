@@ -9,6 +9,7 @@ use JOOservices\Client\Contracts\HttpClientInterface;
 use JOOservices\Client\Contracts\ResponseWrapperInterface;
 use JOOservices\LaravelChatGateway\Contracts\Providers\ProviderHttpClientFactoryContract;
 use JOOservices\LaravelChatGateway\Contracts\Services\MessageServiceContract;
+use JOOservices\LaravelChatGateway\Contracts\Services\ProviderRegistryServiceContract;
 use JOOservices\LaravelChatGateway\Contracts\Services\QueueDispatchServiceContract;
 use JOOservices\LaravelChatGateway\DTOs\OutboundMessageDto;
 use JOOservices\LaravelChatGateway\Jobs\DispatchChatMessageJob;
@@ -37,6 +38,7 @@ final class MessageServiceTest extends TestCase
         $this->app->forgetInstance(TelegramProvider::class);
         $this->app->forgetInstance(ChatGatewayManager::class);
         $this->app->forgetInstance(MessageServiceContract::class);
+        $this->app->forgetInstance(ProviderRegistryServiceContract::class);
 
         $result = $this->app->make(MessageServiceContract::class)->send(new OutboundMessageDto(
             conversationId: $conversation->id,
@@ -91,6 +93,7 @@ final class MessageServiceTest extends TestCase
         $this->app->forgetInstance(TelegramProvider::class);
         $this->app->forgetInstance(ChatGatewayManager::class);
         $this->app->forgetInstance(MessageServiceContract::class);
+        $this->app->forgetInstance(ProviderRegistryServiceContract::class);
 
         $result = $this->app->make(MessageServiceContract::class)->send(new OutboundMessageDto(
             conversationId: null,
@@ -197,6 +200,7 @@ final class MessageServiceTest extends TestCase
         $this->app->forgetInstance(TelegramProvider::class);
         $this->app->forgetInstance(ChatGatewayManager::class);
         $this->app->forgetInstance(MessageServiceContract::class);
+        $this->app->forgetInstance(ProviderRegistryServiceContract::class);
 
         $result = $this->app->make(MessageServiceContract::class)->sendQueued($queuedMessage->id);
 
