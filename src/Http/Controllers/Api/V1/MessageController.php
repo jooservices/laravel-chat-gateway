@@ -23,8 +23,7 @@ final class MessageController extends BaseApiController
     public function store(StoreMessageRequest $request): JsonResponse
     {
         try {
-            $message = $this->messageService->createOutboundFromApi($request->validated());
-            $this->messageService->queueSend((int) $message->getKey());
+            $message = $this->messageService->dispatchOutboundFromApi($request->validated());
         } catch (UnsupportedProviderException $exception) {
             return $this->clientError($exception->getMessage(), 422);
         } catch (ChannelNotFoundException $exception) {

@@ -84,12 +84,33 @@ final class ChannelController extends BaseApiController
             'name' => $channel->name,
             'status' => $channel->status,
             'is_default' => $channel->is_default,
-            'credentials' => $channel->credentials,
             'settings' => $channel->settings,
-            'webhook_secret' => $channel->webhook_secret,
             'meta' => $channel->meta,
+            'has_credentials' => $this->hasCredentials($channel),
+            'credential_keys' => $this->credentialKeys($channel),
+            'webhook_secret_configured' => is_string($channel->webhook_secret) && $channel->webhook_secret !== '',
             'created_at' => $channel->created_at,
             'updated_at' => $channel->updated_at,
         ];
+    }
+
+    private function hasCredentials(ChatChannel $channel): bool
+    {
+        return is_array($channel->credentials) && $channel->credentials !== [];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function credentialKeys(ChatChannel $channel): array
+    {
+        if (! is_array($channel->credentials)) {
+            return [];
+        }
+
+        return array_map(
+            static fn (int|string $key): string => (string) $key,
+            array_keys($channel->credentials),
+        );
     }
 }

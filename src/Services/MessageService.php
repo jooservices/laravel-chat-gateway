@@ -82,37 +82,29 @@ final class MessageService implements MessageServiceContract
     {
         [$stored, $channel, $resolvedMessage] = $this->prepareOutboundMessage($message);
 
-        $this->events->dispatch(new OutgoingMessageCreated($stored));
-
-        if ($this->queueEnabled()) {
-            $this->queueSend((int) $stored->getKey());
-            $this->events->dispatch(new OutgoingMessageQueued($stored));
-
-            return new OutboundMessageResultDto(true, 'queued');
-        }
-
-        return $this->sendStoredMessage($stored, $channel, $resolvedMessage);
+        return $this->dispatchPreparedOutbound($stored, $channel, $resolvedMessage);
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public function createOutboundFromApi(array $data): ChatMessage
     {
-        $provider = (string) $data['provider'];
-        $this->manager->provider($provider);
-        $channel = $this->channelService->resolveProviderChannel($provider, (string) $data['channel_key']);
-
-        [$stored] = $this->prepareOutboundMessage(new OutboundMessageDto(
-            conversationId: isset($data['conversation_id']) ? (int) $data['conversation_id'] : null,
-            channelId: (int) $channel->getKey(),
-            channelKey: $channel->channel_key,
-            externalChatId: isset($data['external_chat_id']) ? (string) $data['external_chat_id'] : null,
-            type: isset($data['type']) ? (string) $data['type'] : 'text',
-            content: isset($data['content']) ? (string) $data['content'] : null,
-            attachments: $this->mapAttachmentDtos($data['attachments'] ?? []),
-            replyToMessageId: isset($data['reply_to_message_id']) ? (string) $data['reply_to_message_id'] : null,
-            meta: isset($data['meta']) && is_array($data['meta']) ? $data['meta'] : null,
-        ));
+        [$stored] = $this->prepareOutboundMessage($this->buildOutboundMessageDtoFromApi($data));
 
         return $stored;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function dispatchOutboundFromApi(array $data): ChatMessage
+    {
+        [$stored, $channel, $resolvedMessage] = $this->prepareOutboundMessage($this->buildOutboundMessageDtoFromApi($data));
+
+        $this->dispatchPreparedOutbound($stored, $channel, $resolvedMessage);
+
+        return $this->messageRepository->findById((int) $stored->getKey()) ?? $stored;
     }
 
     public function queueSend(int $messageId): void
@@ -300,13 +292,48 @@ final class MessageService implements MessageServiceContract
         return $result;
     }
 
+    private function dispatchPreparedOutbound(ChatMessage $stored, ChatChannel $channel, OutboundMessageDto $message): OutboundMessageResultDto
+    {
+        $this->events->dispatch(new OutgoingMessageCreated($stored));
+
+        if ($this->queueEnabled()) {
+            $this->queueSend((int) $stored->getKey());
+            $this->events->dispatch(new OutgoingMessageQueued($stored));
+
+            return new OutboundMessageResultDto(true, 'queued');
+        }
+
+        return $this->sendStoredMessage($stored, $channel, $message);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function buildOutboundMessageDtoFromApi(array $data): OutboundMessageDto
+    {
+        $provider = (string) $data['provider'];
+        $this->manager->provider($provider);
+        $channel = $this->channelService->resolveProviderChannel($provider, (string) $data['channel_key']);
+
+        return new OutboundMessageDto(
+            conversationId: isset($data['conversation_id']) ? (int) $data['conversation_id'] : null,
+            channelId: (int) $channel->getKey(),
+            channelKey: $channel->channel_key,
+            externalChatId: isset($data['external_chat_id']) ? (string) $data['external_chat_id'] : null,
+            type: isset($data['type']) ? (string) $data['type'] : 'text',
+            content: isset($data['content']) ? (string) $data['content'] : null,
+            attachments: $this->mapAttachmentDtos($data['attachments'] ?? []),
+            replyToMessageId: isset($data['reply_to_message_id']) ? (string) $data['reply_to_message_id'] : null,
+            meta: isset($data['meta']) && is_array($data['meta']) ? $data['meta'] : null,
+        );
+    }
+
     private function queueEnabled(): bool
     {
         return (bool) config('chat-gateway.queue.enabled', true);
     }
 
     /**
-     * @param  mixed  $attachments
      * @return list<AttachmentDto>
      */
     private function mapAttachmentDtos(mixed $attachments): array
@@ -361,8 +388,8 @@ final class MessageService implements MessageServiceContract
             ? $payload['content']
             : $stored->content;
 
-        $attachments = isset($payload['attachments']) && is_array($payload['attachments'])
-            ? $payload['attachments']
+        $attachments = array_key_exists('attachments', $payload)
+            ? $this->mapAttachmentDtos($payload['attachments'])
             : [];
 
         $replyToMessageId = isset($payload['replyToMessageId']) && is_string($payload['replyToMessageId'])

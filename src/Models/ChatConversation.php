@@ -21,6 +21,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $closed_at
  * @property Carbon|null $last_message_at
  * @property array<string, mixed>|null $meta
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property ChatChannel $channel
  * @property ChatContact $contact
  */

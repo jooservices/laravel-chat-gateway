@@ -21,8 +21,8 @@ final class StoreMessageRequest extends FormRequest
         return [
             'provider' => ['required', 'string'],
             'channel_key' => ['required', 'string'],
-            'conversation_id' => ['sometimes', 'integer'],
-            'external_chat_id' => ['required', 'string'],
+            'conversation_id' => ['required_without:external_chat_id', 'integer'],
+            'external_chat_id' => ['required_without:conversation_id', 'string'],
             'type' => ['required', 'string'],
             'content' => ['nullable', 'string'],
             'reply_to_message_id' => ['sometimes', 'string'],

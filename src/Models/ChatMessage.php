@@ -25,6 +25,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $delivered_at
  * @property Carbon|null $read_at
  * @property Carbon|null $failed_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  */
 class ChatMessage extends ChatGatewayModel
 {

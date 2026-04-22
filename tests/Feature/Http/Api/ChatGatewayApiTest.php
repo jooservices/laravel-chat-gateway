@@ -6,13 +6,21 @@ namespace JOOservices\LaravelChatGateway\Tests\Feature\Http\Api;
 
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
+use JOOservices\Client\Contracts\HttpClientInterface;
+use JOOservices\Client\Contracts\ResponseWrapperInterface;
+use JOOservices\LaravelChatGateway\Contracts\Providers\ProviderHttpClientFactoryContract;
+use JOOservices\LaravelChatGateway\Contracts\Services\MessageServiceContract;
+use JOOservices\LaravelChatGateway\Contracts\Services\ProviderRegistryServiceContract;
 use JOOservices\LaravelChatGateway\Jobs\DispatchChatMessageJob;
 use JOOservices\LaravelChatGateway\Models\ChatChannel;
 use JOOservices\LaravelChatGateway\Models\ChatContact;
 use JOOservices\LaravelChatGateway\Models\ChatConversation;
 use JOOservices\LaravelChatGateway\Models\ChatMessage;
 use JOOservices\LaravelChatGateway\Models\ChatMessageStatusLog;
+use JOOservices\LaravelChatGateway\Providers\Telegram\TelegramProvider;
+use JOOservices\LaravelChatGateway\Services\ChatGatewayManager;
 use JOOservices\LaravelChatGateway\Tests\TestCase;
+use Mockery;
 
 final class ChatGatewayApiTest extends TestCase
 {
@@ -64,7 +72,7 @@ final class ChatGatewayApiTest extends TestCase
         $response = $this->postJson('/api/v1/chat-gateway/messages', []);
 
         $response->assertUnprocessable();
-        $response->assertJsonValidationErrors(['provider', 'channel_key', 'external_chat_id', 'type']);
+        $response->assertJsonValidationErrors(['provider', 'channel_key', 'conversation_id', 'external_chat_id', 'type']);
     }
 
     public function test_store_channel_request_validates_required_fields(): void
@@ -134,6 +142,57 @@ final class ChatGatewayApiTest extends TestCase
             'content' => 'Outbound API hello',
         ]);
         Queue::assertPushed(DispatchChatMessageJob::class, 1);
+    }
+
+    public function test_post_messages_accepts_conversation_id_without_external_chat_id(): void
+    {
+        Queue::fake();
+
+        config()->set('chat-gateway.queue.enabled', true);
+        config()->set('chat-gateway.queue.connection', 'redis');
+
+        $conversation = $this->makeConversation();
+
+        $response = $this->postJson('/api/v1/chat-gateway/messages', [
+            'provider' => $conversation->channel->provider,
+            'channel_key' => $conversation->channel->channel_key,
+            'conversation_id' => $conversation->id,
+            'type' => 'text',
+            'content' => 'Conversation only outbound',
+        ]);
+
+        $response->assertCreated();
+        $response->assertJsonPath('data.status', 'queued');
+        $this->assertDatabaseHas('chat_messages', [
+            'conversation_id' => $conversation->id,
+            'direction' => 'outbound',
+            'status' => 'queued',
+            'content' => 'Conversation only outbound',
+        ]);
+        Queue::assertPushed(DispatchChatMessageJob::class, 1);
+    }
+
+    public function test_post_messages_sends_inline_when_queueing_is_disabled(): void
+    {
+        config()->set('chat-gateway.queue.enabled', false);
+        $channel = $this->makeChannel(channelKey: 'telegram-inline-api');
+        $this->mockTelegramSend();
+
+        $response = $this->postJson('/api/v1/chat-gateway/messages', [
+            'provider' => $channel->provider,
+            'channel_key' => $channel->channel_key,
+            'external_chat_id' => 'tg-chat-inline-api',
+            'type' => 'text',
+            'content' => 'Inline API hello',
+        ]);
+
+        $response->assertCreated();
+        $response->assertJsonPath('data.status', 'sent');
+        $this->assertDatabaseHas('chat_messages', [
+            'direction' => 'outbound',
+            'status' => 'sent',
+            'content' => 'Inline API hello',
+        ]);
     }
 
     public function test_get_message_returns_status_in_payload(): void
@@ -257,8 +316,22 @@ final class ChatGatewayApiTest extends TestCase
 
         $indexResponse->assertOk();
         $indexResponse->assertJsonPath('data.0.channel_key', 'telegram-read-api');
+        $indexResponse->assertJsonMissingPath('data.0.credentials');
+        $indexResponse->assertJsonMissingPath('data.0.webhook_secret');
+        $indexResponse->assertJsonPath('data.0.has_credentials', true);
+        $indexResponse->assertJsonPath('data.0.credential_keys.0', 'bot_token');
+        $indexResponse->assertJsonPath('data.0.webhook_secret_configured', true);
+        $indexResponse->assertJsonMissing(['bot_token' => 'bot-token']);
+        $indexResponse->assertJsonMissing(['webhook_secret' => 'telegram-secret']);
         $showResponse->assertOk();
         $showResponse->assertJsonPath('data.id', $channel->id);
+        $showResponse->assertJsonMissingPath('data.credentials');
+        $showResponse->assertJsonMissingPath('data.webhook_secret');
+        $showResponse->assertJsonPath('data.has_credentials', true);
+        $showResponse->assertJsonPath('data.credential_keys.0', 'bot_token');
+        $showResponse->assertJsonPath('data.webhook_secret_configured', true);
+        $showResponse->assertJsonMissing(['bot_token' => 'bot-token']);
+        $showResponse->assertJsonMissing(['webhook_secret' => 'telegram-secret']);
     }
 
     public function test_get_conversations_works(): void
@@ -327,5 +400,22 @@ final class ChatGatewayApiTest extends TestCase
             ],
             'webhook_secret' => 'telegram-secret',
         ]);
+    }
+
+    private function mockTelegramSend(): void
+    {
+        $factory = Mockery::mock(ProviderHttpClientFactoryContract::class);
+        $client = Mockery::mock(HttpClientInterface::class);
+        $response = Mockery::mock(ResponseWrapperInterface::class);
+
+        $factory->shouldReceive('make')->once()->andReturn($client);
+        $client->shouldReceive('post')->once()->andReturn($response);
+        $response->shouldReceive('json')->once()->andReturn($this->loadJsonFixture('telegram/outbound_success.json'));
+
+        $this->app->instance(ProviderHttpClientFactoryContract::class, $factory);
+        $this->app->forgetInstance(TelegramProvider::class);
+        $this->app->forgetInstance(ChatGatewayManager::class);
+        $this->app->forgetInstance(MessageServiceContract::class);
+        $this->app->forgetInstance(ProviderRegistryServiceContract::class);
     }
 }

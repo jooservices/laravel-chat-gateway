@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace JOOservices\LaravelChatGateway\Models;
 
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -17,6 +18,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property array<string, mixed>|null $settings
  * @property string|null $webhook_secret
  * @property array<string, mixed>|null $meta
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  */
 class ChatChannel extends ChatGatewayModel
 {

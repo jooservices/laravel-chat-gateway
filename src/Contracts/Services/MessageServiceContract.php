@@ -25,6 +25,11 @@ interface MessageServiceContract
      */
     public function createOutboundFromApi(array $data): ChatMessage;
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function dispatchOutboundFromApi(array $data): ChatMessage;
+
     public function queueSend(int $messageId): void;
 
     public function sendQueued(int $messageId): OutboundMessageResultDto;
