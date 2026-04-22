@@ -1,5 +1,12 @@
 # Docs Changelog
 
+## 2026-04-22
+
+- corrected webhook examples to the fixed `/api/v1/chat-gateway/webhooks/{provider}` API routes
+- documented safe channel API response metadata instead of raw credential or webhook-secret output
+- clarified that outbound API sends respect `chat-gateway.queue.enabled` and use the shared outbound job only when queueing is enabled
+- documented that `POST /api/v1/chat-gateway/messages` accepts either `conversation_id` or `external_chat_id`
+
 ## 2026-04-21
 
 - created the initial documentation tree for `jooservices/laravel-chat-gateway`

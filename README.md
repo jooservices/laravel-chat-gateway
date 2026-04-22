@@ -46,8 +46,8 @@ php artisan vendor:publish --tag=chat-gateway-migrations
 1. Configure `config/chat-gateway.php`.
 2. Create one or more `chat_channels` records with provider credentials plus channel `settings` for inbound mode.
 3. Use `php artisan gateway:poll telegram --once` for the default inbound mode.
-4. If you opt into callback mode for a channel, point the provider webhook URL to `/chat-gateway/webhooks/{provider}/{channelKey?}`.
-5. Send outbound messages through `ChatGatewayManager` or the `ChatGateway` facade.
+4. If you opt into callback mode for a channel, point the provider webhook URL to the fixed provider API route, for example `/api/v1/chat-gateway/webhooks/telegram`.
+5. Send outbound messages through `MessageService`, `ChatGatewayManager`, or `POST /api/v1/chat-gateway/messages`.
 
 Inbound defaults:
 
@@ -63,7 +63,9 @@ This repository includes a local-only Laravel 12 sandbox app at `_sandbox/larave
 - `_sandbox/` is git-ignored and must remain local-only
 - the sandbox is wired for MySQL or MariaDB, MongoDB, Redis, and Telegram-first testing
 
-Outbound delivery can run inline or through Redis queues. Horizon supervision is expected to target the shared package queues by purpose, especially `chat-outbound` for provider sends.
+Outbound delivery can run inline or through Redis queues. When `chat-gateway.queue.enabled` is true, `POST /api/v1/chat-gateway/messages` stores the outbound message as `queued` and dispatches the shared `DispatchChatMessageJob` to `chat-outbound`. When it is false, the same service path sends inline through the provider sender.
+
+Channel API responses intentionally do not expose raw `credentials` or `webhook_secret` values. They return safe operational metadata such as `has_credentials`, `credential_keys`, and `webhook_secret_configured`.
 
 The package also exposes a gateway-focused REST API immediately after install:
 
@@ -82,6 +84,15 @@ The package also exposes a gateway-focused REST API immediately after install:
 - `PATCH /api/v1/chat-gateway/channels/{channel}`
 
 Protected API routes use `chat-gateway.api.middleware.protected` so host applications can attach auth middleware without modifying package routes.
+
+Unsupported providers return a clear JSON client error:
+
+```json
+{
+    "success": false,
+    "message": "Unsupported provider [foo]."
+}
+```
 
 Use the sandbox only when you want a ready-made local host app for package development, migration checks, webhook verification, or polling validation.
 

@@ -29,13 +29,17 @@ Webhook secret rules:
 - Viber callback verification requires a non-empty `webhook_secret`
 - WhatsApp challenge or signature verification requires a non-empty channel secret source
 
-Register the webhook URL with the provider using:
+Register the webhook URL with the provider using the fixed provider API route:
 
-`/chat-gateway/webhooks/{provider}/{channelKey?}`
+`/api/v1/chat-gateway/webhooks/telegram`
 
-Use the verify route when the provider requires a challenge:
+Provider-specific API webhook routes are:
 
-`/chat-gateway/webhooks/{provider}/{channelKey?}/verify`
+- `POST /api/v1/chat-gateway/webhooks/telegram`
+- `POST /api/v1/chat-gateway/webhooks/whatsapp`
+- `POST /api/v1/chat-gateway/webhooks/viber`
+
+Unsupported provider names are rejected with a JSON client error instead of silently falling back.
 
 For local Telegram-first testing in this repository, the sandbox app seeds a `telegram-default` channel under `_sandbox/laravel-app` and exposes helper endpoints plus local-dev artisan commands. See [Local Sandbox](local-sandbox.md) and [Telegram](../03-examples/telegram.md).
 

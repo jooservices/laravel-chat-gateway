@@ -168,8 +168,13 @@ Sandbox-specific routes:
 
 Package routes exposed in the sandbox:
 
-- `POST /chat-gateway/webhooks/{provider}/{channelKey?}`
-- `GET|POST /chat-gateway/webhooks/{provider}/{channelKey?}/verify`
+- `POST /api/v1/chat-gateway/webhooks/telegram`
+- `POST /api/v1/chat-gateway/webhooks/whatsapp`
+- `POST /api/v1/chat-gateway/webhooks/viber`
+- `POST /api/v1/chat-gateway/messages`
+- `GET /api/v1/chat-gateway/messages/{message}`
+- `POST /api/v1/chat-gateway/messages/{message}/retry`
+- `PATCH /api/v1/chat-gateway/channels/{channel}`
 
 Package poll command exposed in the sandbox:
 
@@ -206,13 +211,7 @@ curl -X POST http://127.0.0.1:8000/api/sandbox/telegram/send \
 The sandbox Telegram webhook path is:
 
 ```text
-/chat-gateway/webhooks/telegram/telegram-default
-```
-
-The local verify path is:
-
-```text
-/chat-gateway/webhooks/telegram/telegram-default/verify
+/api/v1/chat-gateway/webhooks/telegram
 ```
 
 Telegram webhook reality for local development:
@@ -248,7 +247,7 @@ php artisan sandbox:telegram:set-webhook https://your-public-host.example
 That registers:
 
 ```text
-https://your-public-host.example/chat-gateway/webhooks/telegram/telegram-default
+https://your-public-host.example/api/v1/chat-gateway/webhooks/telegram
 ```
 
 with `secret_token = TELEGRAM_WEBHOOK_SECRET_TOKEN`.

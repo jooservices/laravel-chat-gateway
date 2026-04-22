@@ -31,6 +31,12 @@ Channel state changes are payload-based on `PATCH /channels/{channel}`:
 
 The API does not expose separate activate, deactivate, or default-channel endpoints.
 
+Channel API responses do not expose raw provider credentials or webhook secrets. `GET /channels` and `GET /channels/{channel}` return safe metadata instead:
+
+- `has_credentials`
+- `credential_keys`
+- `webhook_secret_configured`
+
 Inbound channel resolution order:
 
 1. route `channelKey`

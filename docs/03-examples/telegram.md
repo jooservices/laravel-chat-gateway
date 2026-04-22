@@ -20,15 +20,11 @@ If `chat_channels.webhook_secret` is empty, Telegram webhook verification is rej
 
 Typical route:
 
-`POST /chat-gateway/webhooks/telegram/telegram-default`
+`POST /api/v1/chat-gateway/webhooks/telegram`
 
 Typical poll command:
 
 `php artisan gateway:poll telegram --channel=telegram-default --timeout=30 --limit=100`
-
-Typical verify route:
-
-`GET|POST /chat-gateway/webhooks/telegram/telegram-default/verify`
 
 Telegram facts that matter in this package:
 

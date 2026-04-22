@@ -15,6 +15,8 @@ Outbound sending can be queued through Redis with Horizon supervising the shared
 
 The shared outbound job is `DispatchChatMessageJob`. The package does not create provider-specific send jobs or provider-specific outbound queues.
 
+`POST /api/v1/chat-gateway/messages` follows the same service decision as `MessageService::send()`: queue when `chat-gateway.queue.enabled` is true, send inline when it is false. The controller only delegates to `MessageService`; it does not force queue dispatch.
+
 The following inbound steps stay synchronous even when queueing is enabled:
 
 - webhook verification
