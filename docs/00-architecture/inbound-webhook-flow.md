@@ -19,7 +19,7 @@ The package follows this exact flow:
 
 Preferred dedupe key:
 
-- `provider + external_event_id`
+- `provider + channel_id + external_event_id`
 
 Fallback dedupe key:
 
