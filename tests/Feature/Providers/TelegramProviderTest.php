@@ -51,6 +51,19 @@ final class TelegramProviderTest extends TestCase
         $this->assertTrue($provider->verify($request, $channel)->verified);
     }
 
+    public function test_it_rejects_telegram_secret_from_query_string_when_header_is_missing(): void
+    {
+        $provider = $this->app->make(TelegramProvider::class);
+        $channel = $this->makeChannel('telegram', 'telegram-default');
+
+        $request = Request::create('/hook?secret=telegram-secret', 'POST');
+
+        $result = $provider->verify($request, $channel);
+
+        $this->assertFalse($result->verified);
+        $this->assertSame('Invalid Telegram webhook secret.', $result->reason);
+    }
+
     public function test_it_rejects_telegram_secret_when_channel_secret_is_empty(): void
     {
         $provider = $this->app->make(TelegramProvider::class);

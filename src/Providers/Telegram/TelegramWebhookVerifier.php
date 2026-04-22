@@ -24,10 +24,6 @@ final class TelegramWebhookVerifier implements WebhookVerifierContract
 
         $header = (string) $request->header('X-Telegram-Bot-Api-Secret-Token', '');
 
-        if ($header === '') {
-            $header = (string) $request->query('secret', '');
-        }
-
         $verified = hash_equals($secret, $header);
 
         return new VerificationResultDto(
