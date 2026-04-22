@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace JOOservices\LaravelChatGateway\Providers\Telegram;
 
 use Illuminate\Http\Request;
+use JOOservices\LaravelChatGateway\Contracts\Providers\CredentialSchemaContract;
 use JOOservices\LaravelChatGateway\Contracts\Providers\InboundWebhookParserContract;
 use JOOservices\LaravelChatGateway\Contracts\Providers\OutboundMessageSenderContract;
 use JOOservices\LaravelChatGateway\Contracts\Providers\PollingCapableProviderContract;
 use JOOservices\LaravelChatGateway\Contracts\Providers\PollingUpdateFetcherContract;
-use JOOservices\LaravelChatGateway\Contracts\Providers\CredentialSchemaContract;
 use JOOservices\LaravelChatGateway\Contracts\Providers\SupportsCredentialSchemaContract;
 use JOOservices\LaravelChatGateway\Contracts\Providers\WebhookVerifierContract;
 use JOOservices\LaravelChatGateway\DTOs\OutboundMessageDto;

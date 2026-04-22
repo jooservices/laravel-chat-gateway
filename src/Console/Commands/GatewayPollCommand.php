@@ -29,11 +29,24 @@ final class GatewayPollCommand extends Command
 
     public function handle(): int
     {
-        $provider = (string) $this->argument('provider');
+        $providerArgument = $this->argument('provider');
+
+        if (! is_scalar($providerArgument) || $providerArgument === '') {
+            $this->error('Provider argument is required.');
+
+            return self::FAILURE;
+        }
+
+        $provider = (string) $providerArgument;
+        $channel = $this->option('channel');
+        $timeout = $this->option('timeout');
+        $limit = $this->option('limit');
+        $sleep = $this->option('sleep');
+
         $options = new PollingBatchOptionsDto(
-            channelKey: $this->option('channel') !== null ? (string) $this->option('channel') : null,
-            timeout: $this->option('timeout') !== null ? (int) $this->option('timeout') : null,
-            limit: $this->option('limit') !== null ? (int) $this->option('limit') : null,
+            channelKey: is_scalar($channel) && $channel !== '' ? (string) $channel : null,
+            timeout: is_scalar($timeout) && $timeout !== '' ? (int) $timeout : null,
+            limit: is_scalar($limit) && $limit !== '' ? (int) $limit : null,
             resetOffset: (bool) $this->option('reset'),
         );
 
@@ -63,7 +76,7 @@ final class GatewayPollCommand extends Command
                 resetOffset: false,
             );
 
-            sleep(max(1, (int) $this->option('sleep')));
+            sleep(max(1, is_scalar($sleep) ? (int) $sleep : 1));
         } while (true);
     }
 }

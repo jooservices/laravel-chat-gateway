@@ -13,7 +13,7 @@ final class ChatGatewayModelTest extends TestCase
     {
         config()->set('chat-gateway.database.connection', 'operational-mysql');
 
-        $model = new ChatMessage();
+        $model = new ChatMessage;
 
         $this->assertSame('operational-mysql', $model->getConnectionName());
     }
@@ -22,7 +22,7 @@ final class ChatGatewayModelTest extends TestCase
     {
         config()->set('chat-gateway.database.connection', null);
 
-        $model = new ChatMessage();
+        $model = new ChatMessage;
 
         $this->assertNull($model->getConnectionName());
     }
